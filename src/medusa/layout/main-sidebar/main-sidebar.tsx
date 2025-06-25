@@ -4,11 +4,9 @@ import { Divider } from '../../components/divider';
 import { Skeleton } from '../../components/skeleton';
 import { NavItem } from '../nav-item';
 import { IRoutes, MENU_CONSTANTS } from '@/constants/menu-constants';
-import { ChevronDownMini, EllipsisHorizontal, MinusMini, OpenRectArrowOut } from '@medusajs/icons';
+import { ChevronDownMini, MinusMini } from '@medusajs/icons';
 import { Avatar, DropdownMenu, Text, clx } from '@medusajs/ui';
 import * as Collapsible from '@radix-ui/react-collapsible';
-import { signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 
 export const MainSidebar = () => {
   return (
@@ -29,24 +27,6 @@ export const MainSidebar = () => {
         </div>
       </div>
     </aside>
-  );
-};
-
-const Logout = () => {
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
-  };
-
-  return (
-    <DropdownMenu.Item onClick={handleLogout}>
-      <div className="flex items-center gap-x-2">
-        <OpenRectArrowOut className="text-ui-fg-subtle" />
-        <span>Logout</span>
-      </div>
-    </DropdownMenu.Item>
   );
 };
 
@@ -79,23 +59,7 @@ const Header = () => {
               <Skeleton className="h-[9px] w-[120px]" />
             )}
           </div>
-          <EllipsisHorizontal className="text-ui-fg-muted" />
         </DropdownMenu.Trigger>
-        <DropdownMenu.Content className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-0">
-          <div className="flex items-center px-2 py-1 gap-x-3">
-            <Avatar variant="squared" size="small" fallback={fallback} />
-            <div className="flex flex-col overflow-hidden">
-              <Text size="small" weight="plus" leading="compact" className="truncate">
-                {name}
-              </Text>
-              <Text size="xsmall" leading="compact" className="text-ui-fg-subtle">
-                {name}
-              </Text>
-            </div>
-          </div>
-          <DropdownMenu.Separator />
-          <Logout />
-        </DropdownMenu.Content>
       </DropdownMenu>
     </div>
   );
