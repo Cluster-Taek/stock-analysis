@@ -1,5 +1,6 @@
 import AlertProvider from './alert-provider';
 import { QueryProvider } from './query-provider';
+import { ThemeProvider } from 'next-themes';
 
 interface ICoreProviderProps {
   children?: React.ReactNode;
@@ -7,9 +8,11 @@ interface ICoreProviderProps {
 
 const CoreProvider = ({ children }: ICoreProviderProps) => {
   return (
-    <AlertProvider>
-      <QueryProvider>{children}</QueryProvider>
-    </AlertProvider>
+    <ThemeProvider themes={['light', 'dark']} enableSystem={false} disableTransitionOnChange={false}>
+      <AlertProvider>
+        <QueryProvider>{children}</QueryProvider>
+      </AlertProvider>
+    </ThemeProvider>
   );
 };
 

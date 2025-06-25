@@ -1,6 +1,7 @@
 import { Breadcrumbs } from './breadcrumb';
 import { DesktopSidebarContainer } from './desktop-sidebar-container/desktop-sidebar-container';
 import { MobileSidebarContainer } from './mobile-sidebar-container/mobile-sidebar-container';
+import { ToggleTheme } from './toggle-theme';
 import { ToggleSidebar } from './top-sidebar';
 import { PropsWithChildren } from 'react';
 
@@ -34,6 +35,7 @@ const Topbar = () => {
         <ToggleSidebar />
         <Breadcrumbs />
       </div>
+      <ToggleTheme />
     </div>
   );
 };
