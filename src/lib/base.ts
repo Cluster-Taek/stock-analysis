@@ -8,18 +8,15 @@ interface IFetchApiArgs {
   method: string;
   url: string;
   body?: Body;
-  external?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _fetchApi = async <T = object>({ method, url, body, external }: IFetchApiArgs): Promise<T> => {
+const _fetchApi = async <T = object>({ method, url, body }: IFetchApiArgs): Promise<T> => {
   const session = await getSession();
-
-  const externalUrl = `/api/external-proxy?url=${encodeURIComponent(url.replace('/api', '/api/v1'))}`;
 
   const response = await axios({
     method,
-    url: external ? externalUrl : `${process.env.NEXT_PUBLIC_API_URL}${url.replace('/admin-api', '/admin-api/v1')}`,
+    url: `${process.env.NEXT_PUBLIC_API_URL}${url.replace('/admin-api', '/admin-api/v1')}`,
     data: method !== 'GET' ? body : undefined,
     params: method === 'GET' ? body : undefined,
     headers: {
@@ -83,42 +80,5 @@ export const fetchApi: FetchApi = {
     _fetchApi({
       method: 'DELETE',
       url,
-    }),
-};
-
-export const externalFetchApi: FetchApi = {
-  post: (url, body) =>
-    _fetchApi({
-      method: 'POST',
-      url,
-      body,
-      external: true,
-    }),
-  get: (url, params) =>
-    _fetchApi({
-      method: 'GET',
-      url,
-      body: params,
-      external: true,
-    }),
-  patch: (url, body) =>
-    _fetchApi({
-      method: 'PATCH',
-      url,
-      body,
-      external: true,
-    }),
-  put: (url, body) =>
-    _fetchApi({
-      method: 'PUT',
-      url,
-      body,
-      external: true,
-    }),
-  delete: (url) =>
-    _fetchApi({
-      method: 'DELETE',
-      url,
-      external: true,
     }),
 };
