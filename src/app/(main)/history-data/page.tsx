@@ -166,6 +166,7 @@ function HistoryDataContent() {
                     {[
                       { symbol: 'YMAX', name: 'YMAX' },
                       { symbol: 'ULTY', name: 'ULTY' },
+                      { symbol: 'QLD', name: 'QLD' },
                     ].map((stock) => (
                       <Button
                         key={stock.symbol}
