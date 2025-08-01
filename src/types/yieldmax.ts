@@ -12,3 +12,17 @@ export interface IYieldmax {
   symbol: string;
   group: YieldmaxGroup;
 }
+
+// TODO: Distribution API에서 사용할 데이터 타입
+export interface DistributionData {
+  symbol: string;
+  distributionRate: number;
+  secYield: number;
+  lastDistribution: {
+    date: string;
+    amount: number;
+    returnOfCapital: number;
+    income: number;
+  };
+  // TODO: 추가 필요한 필드들 (예: historicalDistributions, nextPaymentDate 등)
+}
