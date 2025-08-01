@@ -21,7 +21,7 @@ export function ChartForm({ onSubmit, loading = false, initialValues, className 
   // 폼 상태
   const [symbol, setSymbol] = useState(initialValues?.symbol || '');
   const [startDate, setStartDate] = useState(
-    initialValues?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30일 전
+    initialValues?.startDate || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 1년 전
   );
   const [endDate, setEndDate] = useState(
     initialValues?.endDate || new Date().toISOString().split('T')[0] // 오늘
