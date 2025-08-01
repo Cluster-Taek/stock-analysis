@@ -2,7 +2,8 @@
 
 import { useStockSearch } from '@/hooks/use-stock-search';
 import { ChartConfig, SearchResult } from '@/types/yahoo-finance';
-import { Button } from '@medusajs/ui';
+import { MagnifyingGlass, Spinner } from '@medusajs/icons';
+import { Button, Container, Heading, Input, Label, RadioGroup, Text } from '@medusajs/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 interface ChartFormProps {
@@ -45,6 +46,7 @@ export function ChartForm({ onSubmit, loading = false, initialValues, className 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+
       if (isValid && !loading) {
         onSubmit({
           symbol: symbol.trim().toUpperCase(),
@@ -117,133 +119,134 @@ export function ChartForm({ onSubmit, loading = false, initialValues, className 
   }, [showDropdown]);
 
   return (
-    <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
-      {/* 종목 검색 */}
-      <div className="space-y-2">
-        <label htmlFor="symbol" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-          종목 심볼
-        </label>
-        <div className="relative">
-          <input
-            id="symbol"
-            type="text"
-            value={searchQuery || symbol}
-            onChange={handleSearchChange}
-            onKeyDown={handleKeyDown}
-            onClick={() => setShowDropdown(searchQuery.length >= 2)}
-            placeholder="AAPL, TSLA, MSFT 등을 입력하세요"
-            className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            autoComplete="off"
-          />
-
-          {/* 로딩 표시 */}
-          {searchLoading && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-            </div>
-          )}
-
-          {/* 검색 결과 드롭다운 */}
-          {showDropdown && searchResults?.results && searchResults.results.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
-              {searchResults.results.map((stock, index) => (
-                <button
-                  key={stock.symbol}
-                  type="button"
-                  onClick={() => handleSelectStock(stock)}
-                  className={`w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                    index === selectedIndex
-                      ? 'bg-blue-50 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100'
-                      : 'text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">{stock.symbol}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {stock.name} {stock.exchange && `• ${stock.exchange}`}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 날짜 선택 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label htmlFor="startDate" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-            시작일
-          </label>
-          <input
-            id="startDate"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            max={endDate}
-            className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+    <Container className={className}>
+      <div className="space-y-6">
+        <div>
+          <Heading level="h3">차트 설정</Heading>
+          <Text size="small" className="text-ui-fg-muted mt-1">
+            종목과 기간을 선택하여 주식 차트를 확인하세요
+          </Text>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="endDate" className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-            종료일
-          </label>
-          <input
-            id="endDate"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            min={startDate}
-            max={new Date().toISOString().split('T')[0]}
-            className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* 인터벌 선택 */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-900 dark:text-gray-100">데이터 간격</label>
-        <div className="flex space-x-4">
-          {[
-            { value: '1d', label: '일별' },
-            { value: '1wk', label: '주별' },
-            { value: '1mo', label: '월별' },
-          ].map((option) => (
-            <label key={option.value} className="flex items-center">
-              <input
-                type="radio"
-                name="interval"
-                value={option.value}
-                checked={interval === option.value}
-                onChange={(e) => setInterval(e.target.value as '1d' | '1wk' | '1mo')}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 종목 검색 */}
+          <div className="space-y-2">
+            <Label htmlFor="symbol">종목 심볼</Label>
+            <div className="relative">
+              <Input
+                id="symbol"
+                type="text"
+                value={searchQuery || symbol}
+                onChange={handleSearchChange}
+                onKeyDown={handleKeyDown}
+                onClick={() => setShowDropdown(searchQuery.length >= 2)}
+                placeholder="AAPL, TSLA, MSFT 등을 입력하세요"
+                autoComplete="off"
+                className="pr-10"
               />
-              <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">{option.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
 
-      {/* 제출 버튼 */}
-      <Button type="submit" disabled={!isValid || loading} className="w-full" size="large">
-        {loading ? (
-          <div className="flex items-center">
-            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-            차트 로딩 중...
+              {/* 아이콘 표시 */}
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                {searchLoading ? (
+                  <Spinner className="animate-spin h-4 w-4 text-ui-fg-muted" />
+                ) : (
+                  <MagnifyingGlass className="h-4 w-4 text-ui-fg-muted" />
+                )}
+              </div>
+
+              {/* 검색 결과 드롭다운 */}
+              {showDropdown && searchResults?.results && searchResults.results.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-ui-bg-base border border-ui-border-base rounded-md shadow-lg max-h-60 overflow-auto">
+                  {searchResults.results.map((stock, index) => (
+                    <button
+                      key={stock.symbol}
+                      type="button"
+                      onClick={() => handleSelectStock(stock)}
+                      className={`w-full px-3 py-3 text-left hover:bg-ui-bg-component-hover focus:bg-ui-bg-component-hover focus:outline-none border-b border-ui-border-base last:border-b-0 ${
+                        index === selectedIndex ? 'bg-ui-bg-highlight text-ui-fg-base' : 'text-ui-fg-base'
+                      }`}
+                    >
+                      <div className="font-medium text-ui-fg-base">{stock.symbol}</div>
+                      <div className="text-small text-ui-fg-muted">
+                        {stock.name} {stock.exchange && `• ${stock.exchange}`}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          '차트 보기'
-        )}
-      </Button>
 
-      {/* 유효성 검사 메시지 */}
-      {!isValid && symbol && startDate && endDate && (
-        <p className="text-sm text-red-600 dark:text-red-400">
-          {new Date(startDate) > new Date(endDate)
-            ? '시작일이 종료일보다 늦을 수 없습니다.'
-            : '모든 필수 항목을 입력해주세요.'}
-        </p>
-      )}
-    </form>
+          {/* 날짜 선택 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate">시작일</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                max={endDate}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="endDate">종료일</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+
+          {/* 인터벌 선택 */}
+          <div className="space-y-2">
+            <Label>데이터 간격</Label>
+            <RadioGroup
+              value={interval}
+              onValueChange={(value) => setInterval(value as '1d' | '1wk' | '1mo')}
+              className="flex space-x-6"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroup.Item value="1d" id="interval-1d" />
+                <Label htmlFor="interval-1d" className="cursor-pointer">
+                  일별
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroup.Item value="1wk" id="interval-1wk" />
+                <Label htmlFor="interval-1wk" className="cursor-pointer">
+                  주별
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroup.Item value="1mo" id="interval-1mo" />
+                <Label htmlFor="interval-1mo" className="cursor-pointer">
+                  월별
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* 제출 버튼 */}
+          <Button type="submit" disabled={!isValid || loading} className="w-full" size="large" isLoading={loading}>
+            차트 보기
+          </Button>
+
+          {/* 유효성 검사 메시지 */}
+          {!isValid && symbol && startDate && endDate && (
+            <Text size="small" className="text-ui-fg-error">
+              {new Date(startDate) > new Date(endDate)
+                ? '시작일이 종료일보다 늦을 수 없습니다.'
+                : '모든 필수 항목을 입력해주세요.'}
+            </Text>
+          )}
+        </form>
+      </div>
+    </Container>
   );
 }
