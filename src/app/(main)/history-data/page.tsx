@@ -9,13 +9,12 @@ import { ChartConfig } from '@/types/yahoo-finance';
 import { ArrowPath, XMark } from '@medusajs/icons';
 import { Badge, Button, Container, Heading, Text } from '@medusajs/ui';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 
 /**
- * 주식 히스토리컬 데이터 차트 페이지
- * URL searchParams를 통해 차트 설정을 관리
+ * useSearchParams()를 사용하는 메인 컨텐츠 컴포넌트
  */
-export default function HistoryDataPage() {
+function HistoryDataContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -307,5 +306,49 @@ export default function HistoryDataPage() {
         </TwoColumnPage>
       </div>
     </div>
+  );
+}
+
+/**
+ * 로딩 fallback 컴포넌트
+ */
+function HistoryDataLoading() {
+  return (
+    <div className="flex flex-col h-full">
+      <Header title="주식 히스토리컬 데이터" subtitle="종목별 과거 주가 데이터를 차트로 확인하세요" />
+      <div className="flex-1 px-6 pb-6">
+        <TwoColumnPage>
+          <div className="space-y-3">
+            <Container>
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-10 bg-gray-200 rounded"></div>
+                <div className="h-10 bg-gray-200 rounded"></div>
+                <div className="h-10 bg-gray-200 rounded"></div>
+              </div>
+            </Container>
+          </div>
+          <div className="space-y-3">
+            <Container>
+              <div className="animate-pulse">
+                <div className="h-64 bg-gray-200 rounded"></div>
+              </div>
+            </Container>
+          </div>
+        </TwoColumnPage>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 주식 히스토리컬 데이터 차트 페이지 (Suspense boundary 포함)
+ * URL searchParams를 통해 차트 설정을 관리
+ */
+export default function HistoryDataPage() {
+  return (
+    <Suspense fallback={<HistoryDataLoading />}>
+      <HistoryDataContent />
+    </Suspense>
   );
 }
