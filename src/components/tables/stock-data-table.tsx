@@ -2,20 +2,19 @@
 
 import { Table } from '@/medusa/components/table';
 import { HistoricalDataPoint } from '@/types/yahoo-finance';
-import { Container, Heading } from '@medusajs/ui';
+import { Container } from '@medusajs/ui';
 import React from 'react';
 
 interface StockDataTableProps {
   data: HistoricalDataPoint[];
   symbol: string;
-  title?: string;
   className?: string;
 }
 
 /**
  * 주식 히스토리컬 데이터를 표시하는 테이블 컴포넌트
  */
-export function StockDataTable({ data, symbol, title, className = '' }: StockDataTableProps) {
+export function StockDataTable({ data, symbol, className = '' }: StockDataTableProps) {
   if (!data || data.length === 0) {
     return null;
   }
@@ -99,18 +98,15 @@ export function StockDataTable({ data, symbol, title, className = '' }: StockDat
 
   return (
     <Container className={className}>
-      <div className="space-y-4">
-        <Heading level="h3">{title || `${symbol} 주식 데이터`}</Heading>
-        <Table
-          tableKey="stock-history-data"
-          title={`${symbol} 히스토리컬 데이터`}
-          columns={columns}
-          data={tableData}
-          pageSize={15}
-          pagination={false}
-          columnsVisibility={true}
-        />
-      </div>
+      <Table
+        tableKey="stock-history-data"
+        title={`${symbol} 히스토리컬 데이터`}
+        columns={columns}
+        data={tableData}
+        pageSize={15}
+        pagination={false}
+        columnsVisibility={true}
+      />
     </Container>
   );
 }
