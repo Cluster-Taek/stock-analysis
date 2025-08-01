@@ -35,17 +35,20 @@ export function StockChart({
   const isDark = theme === 'dark';
   const colors = getChartColors(isDark);
 
+  // 정렬된 데이터 (tooltip에서 사용하기 위해 컴포넌트 레벨에서 관리)
+  const sortedData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [data]);
+
   // 차트 데이터 준비
   const chartData = useMemo(() => {
-    if (!data || data.length === 0) {
+    if (sortedData.length === 0) {
       return {
         labels: [],
         datasets: [],
       };
     }
-
-    // 날짜별로 정렬 (오래된 것부터)
-    const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // 기본 가격 데이터셋들
     const datasets = [];
@@ -80,18 +83,16 @@ export function StockChart({
       labels: sortedData.map((item) => item.date),
       datasets,
     };
-  }, [data, symbol, colors, showAdjustedClose]);
+  }, [sortedData, symbol, colors, showAdjustedClose]);
 
   // 볼륨 차트 데이터 (별도 차트로 표시할 예정)
   const volumeChartData = useMemo(() => {
-    if (!data || data.length === 0 || !showVolume) {
+    if (sortedData.length === 0 || !showVolume) {
       return {
         labels: [],
         datasets: [],
       };
     }
-
-    const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const volumeData = sortedData.map((item) => ({
       x: item.date,
@@ -102,7 +103,7 @@ export function StockChart({
       labels: sortedData.map((item) => item.date),
       datasets: [createLineDataset(`${symbol} 거래량`, volumeData, colors.warning, true)],
     };
-  }, [data, symbol, colors, showVolume]);
+  }, [sortedData, symbol, colors, showVolume]);
 
   // 차트 옵션 (가격 차트용)
   const priceChartOptions = useMemo(
@@ -131,13 +132,17 @@ export function StockChart({
           callbacks: {
             title: (context: TooltipItem<'line'>[]) => {
               if (context.length > 0) {
-                const date = new Date(context[0].parsed.x);
-                return date.toLocaleDateString('ko-KR', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  weekday: 'long',
-                });
+                const dataIndex = context[0].dataIndex;
+                if (sortedData && sortedData[dataIndex]) {
+                  const dateStr = sortedData[dataIndex].date;
+                  const date = new Date(dateStr);
+                  return date.toLocaleDateString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'long',
+                  });
+                }
               }
               return '';
             },
@@ -152,8 +157,8 @@ export function StockChart({
             afterBody: (context: TooltipItem<'line'>[]) => {
               if (context.length > 0) {
                 const dataIndex = context[0].dataIndex;
-                if (data && data[dataIndex]) {
-                  const point = data[dataIndex];
+                if (sortedData && sortedData[dataIndex]) {
+                  const point = sortedData[dataIndex];
                   const change = point.close - point.open;
                   const changePercent = (change / point.open) * 100;
                   const changeText = change >= 0 ? `+$${change.toFixed(2)}` : `-$${Math.abs(change).toFixed(2)}`;
@@ -197,7 +202,7 @@ export function StockChart({
         },
       },
     }),
-    [symbol, colors, data]
+    [symbol, colors, sortedData]
   );
 
   // 볼륨 차트 옵션
