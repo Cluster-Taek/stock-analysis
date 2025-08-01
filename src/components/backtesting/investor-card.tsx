@@ -1,4 +1,5 @@
-import { IInvestor, getPortfolioStrategyLabel, getPortfolioTypeLabel } from '@/types/investor';
+import { PortfolioPieChart } from '@/components/charts';
+import { IInvestor } from '@/types/investor';
 import { Badge, Container, Heading, StatusBadge, Text } from '@medusajs/ui';
 
 interface IInvestorCardProps {
@@ -75,33 +76,14 @@ const InvestorCard = ({ investor }: IInvestorCardProps) => {
             )}
           </div>
 
-          {/* 포트폴리오 아이템 미리보기 */}
+          {/* 포트폴리오 파이 차트 */}
           {investor.portfolio.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Text size="small" className="text-ui-fg-muted">
-                보유 종목
+                포트폴리오 구성
               </Text>
-              <div className="space-y-1">
-                {investor.portfolio.slice(0, 3).map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Text size="small" family="mono" className="text-ui-fg-base">
-                      {item.symbol}
-                    </Text>
-                    <Badge color="grey" size="small">
-                      {getPortfolioTypeLabel(item.type)}
-                    </Badge>
-                    {item.strategy && (
-                      <Badge color="grey" size="small">
-                        {getPortfolioStrategyLabel(item.strategy)}
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-                {investor.portfolio.length > 3 && (
-                  <Text size="small" className="text-ui-fg-muted">
-                    외 {investor.portfolio.length - 3}개 종목
-                  </Text>
-                )}
+              <div className="h-32">
+                <PortfolioPieChart portfolio={investor.portfolio} height={128} className="rounded-lg" />
               </div>
             </div>
           )}

@@ -1,4 +1,5 @@
 import {
+  ArcElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
@@ -15,7 +16,18 @@ import type { ChartOptions } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 
 // Chart.js 플러그인 등록
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, TimeScale);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  TimeScale
+);
 
 // 차트 기본 설정
 export const defaultChartOptions: ChartOptions<'line'> = {
@@ -141,6 +153,58 @@ export const getChartColors = (isDark: boolean = false) => ({
   grid: isDark ? 'rgba(156, 163, 175, 0.2)' : 'rgba(107, 114, 128, 0.1)',
 });
 
+// 파이 차트 기본 설정
+export const defaultPieChartOptions: ChartOptions<'pie'> = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom' as const,
+      labels: {
+        color: 'rgb(107, 114, 128)', // gray-500
+        font: {
+          size: 11,
+          weight: 500,
+        },
+        padding: 12,
+        usePointStyle: true,
+      },
+    },
+    tooltip: {
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleColor: 'white',
+      bodyColor: 'white',
+      borderColor: 'rgba(0, 0, 0, 0.1)',
+      borderWidth: 1,
+      cornerRadius: 8,
+      displayColors: true,
+      callbacks: {
+        label: (context: TooltipItem<'pie'>) => {
+          const label = context.label || '';
+          const value = context.parsed;
+          const total = context.dataset.data.reduce((a, b) => a + b, 0);
+          const percentage = ((value / total) * 100).toFixed(1);
+          return `${label}: ${percentage}%`;
+        },
+      },
+    },
+  },
+};
+
+// 포트폴리오 차트 색상 팔레트 (medusa UI 색상 시스템 기반)
+export const portfolioColors = [
+  'rgb(59, 130, 246)', // blue (tag-blue-text)
+  'rgb(91, 33, 182)', // purple (tag-purple-text)
+  'rgb(249, 115, 22)', // orange (tag-orange-icon)
+  'rgb(16, 185, 129)', // green (tag-green-icon)
+  'rgb(244, 63, 94)', // red (tag-red-icon)
+  'rgb(167, 139, 250)', // purple-light (tag-purple-icon)
+  'rgb(96, 165, 250)', // blue-light (tag-blue-icon)
+  'rgb(251, 146, 60)', // orange-light (tag-orange-icon)
+  'rgb(52, 211, 153)', // green-light (tag-green-text)
+  'rgb(161, 161, 170)', // gray (tag-neutral-icon)
+];
+
 // 차트 데이터셋 생성 헬퍼
 export const createLineDataset = (
   label: string,
@@ -155,4 +219,12 @@ export const createLineDataset = (
   fill,
   pointBackgroundColor: color,
   pointBorderColor: color,
+});
+
+// 파이 차트 데이터셋 생성 헬퍼
+export const createPieDataset = (data: number[], colors: string[] = portfolioColors) => ({
+  data,
+  backgroundColor: colors.slice(0, data.length),
+  borderColor: colors.slice(0, data.length).map((color) => color.replace('rgb', 'rgba').replace(')', ', 0.8)')),
+  borderWidth: 2,
 });
