@@ -1,4 +1,4 @@
-import { DistributionData } from '@/types/yieldmax';
+import { DistributionData, DistributionHistoryItem } from '@/types/yieldmax';
 import { isYieldmaxSymbol } from '@/utils/yieldmax-utils';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -82,15 +82,15 @@ async function scrapeDistributionData(symbol: string): Promise<DistributionData>
     const distributionRate = parseFloat(distributionRateText) || 0;
     const secYield = parseFloat(secYieldText) || 0;
 
-    // 마지막 배당 정보 크롤링
-    const lastDistributionInfo = await scrapeLastDistributionInfo($, tableMapping.historyTable);
+    // 배당 히스토리 크롤링 (모든 데이터)
+    const distributionHistory = await scrapeDistributionHistory($, tableMapping.historyTable);
 
     // 4. DistributionData 형태로 반환
     const distributionData: DistributionData = {
       symbol: symbol.toUpperCase(),
       distributionRate,
       secYield,
-      lastDistribution: lastDistributionInfo,
+      distributionHistory,
     };
 
     console.log('Scraped distribution data:', distributionData);
@@ -103,44 +103,72 @@ async function scrapeDistributionData(symbol: string): Promise<DistributionData>
   }
 }
 
-// 마지막 배당 정보 크롤링 (실제 구현)
-async function scrapeLastDistributionInfo($: cheerio.CheerioAPI, historyTableId: string) {
+// 모든 배당 히스토리 크롤링 (실제 구현)
+async function scrapeDistributionHistory(
+  $: cheerio.CheerioAPI,
+  historyTableId: string
+): Promise<DistributionHistoryItem[]> {
   try {
-    // table_384_row_0에서 최신 배당 정보 추출
-    const latestRow = $(`#table_${historyTableId}_row_0`);
+    const distributionHistory: DistributionHistoryItem[] = [];
 
-    if (latestRow.length === 0) {
-      console.warn(`No distribution history found in table_${historyTableId}`);
-      return {
-        date: '2025-07-30',
-        amount: 0.75,
-        returnOfCapital: 100,
-        income: 0,
-      };
+    // 테이블의 모든 row들을 순회
+    let rowIndex = 0;
+
+    while (true) {
+      const row = $(`#table_${historyTableId}_row_${rowIndex}`);
+
+      if (row.length === 0) {
+        // 더 이상 row가 없으면 중단
+        break;
+      }
+
+      const columns = row.find('td');
+
+      if (columns.length >= 3) {
+        // 첫 번째 컬럼: 심볼, 두 번째 컬럼: 배당금액, 세 번째 컬럼: 날짜
+        // const symbolText = $(columns[0]).text().trim();
+        const amountText = $(columns[1]).text().trim();
+        const dateText = $(columns[2]).text().trim();
+
+        // 추가 날짜 정보들 (ex-date, record date, payable date)
+        const exDate = columns.length > 3 ? $(columns[3]).text().trim() : undefined;
+        const recordDate = columns.length > 4 ? $(columns[4]).text().trim() : undefined;
+        const payableDate = columns.length > 5 ? $(columns[5]).text().trim() : undefined;
+
+        const amount = parseFloat(amountText) || 0;
+
+        if (amount > 0 && dateText) {
+          const distributionItem: DistributionHistoryItem = {
+            date: dateText,
+            amount,
+            returnOfCapital: 100, // 기본값 (추후 개선 가능)
+            income: 0, // 기본값 (추후 개선 가능)
+            exDate: exDate || undefined,
+            recordDate: recordDate || undefined,
+            payableDate: payableDate || undefined,
+          };
+
+          distributionHistory.push(distributionItem);
+          console.log(`Distribution ${rowIndex}: ${amount} on ${dateText}`);
+        }
+      }
+
+      rowIndex++;
+
+      // 안전장치: 너무 많은 row를 처리하지 않도록 제한
+      if (rowIndex > 50) {
+        console.warn(`Too many rows in table_${historyTableId}, stopping at row ${rowIndex}`);
+        break;
+      }
     }
 
-    // 두 번째 컬럼: 배당금액, 세 번째 컬럼: 날짜
-    const amountText = latestRow.find('td:nth-child(2)').text().trim();
-    const dateText = latestRow.find('td:nth-child(3)').text().trim();
-
-    const amount = parseFloat(amountText) || 0;
-
-    console.log(`Latest distribution: ${amount} on ${dateText}`);
-
-    return {
-      date: dateText || '2025-07-30',
-      amount: amount,
-      returnOfCapital: 100, // TODO: 실제 구성 비율 파싱
-      income: 0,
-    };
+    console.log(`Found ${distributionHistory.length} distribution entries in table_${historyTableId}`);
+    return distributionHistory;
   } catch (error) {
-    console.error('Error scraping distribution history:', error);
-    return {
-      date: '2025-07-30',
-      amount: 0.75,
-      returnOfCapital: 100,
-      income: 0,
-    };
+    console.error(`Error scraping distribution history from table_${historyTableId}:`, error);
+
+    // 에러 시 빈 배열 반환
+    return [];
   }
 }
 

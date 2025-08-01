@@ -18,11 +18,16 @@ export interface DistributionData {
   symbol: string;
   distributionRate: number;
   secYield: number;
-  lastDistribution: {
-    date: string;
-    amount: number;
-    returnOfCapital: number;
-    income: number;
-  };
-  // TODO: 추가 필요한 필드들 (예: historicalDistributions, nextPaymentDate 등)
+  distributionHistory: DistributionHistoryItem[];
+  // TODO: 추가 필요한 필드들 (예: nextPaymentDate 등)
+}
+
+export interface DistributionHistoryItem {
+  date: string;
+  amount: number;
+  returnOfCapital: number;
+  income: number;
+  exDate?: string;
+  recordDate?: string;
+  payableDate?: string;
 }
