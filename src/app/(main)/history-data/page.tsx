@@ -3,7 +3,8 @@
 import { StockChart } from '@/components/charts';
 import { CollapseSection } from '@/components/common/collapse-section';
 import { ChartForm } from '@/components/forms';
-import { StockDataTable } from '@/components/tables';
+import { DistributionDataTable, StockDataTable } from '@/components/tables';
+import { useDistributionData } from '@/hooks/use-distribution-data';
 import { useStockChart } from '@/hooks/use-stock-chart';
 import { Header } from '@/medusa/components/header';
 import { SingleColumnPage } from '@/medusa/layout/pages/single-column-page';
@@ -62,6 +63,19 @@ function HistoryDataContent() {
     enabled: !!chartConfig,
   });
 
+  // 배당 데이터 훅 (YieldMax ETF인 경우에만)
+  const {
+    data: distributionData,
+    isLoading: isDistributionLoading,
+    error: distributionError,
+    isYieldmax,
+    hasDistributionData,
+    refetch: refetchDistribution,
+  } = useDistributionData({
+    symbol: chartConfig?.symbol || '',
+    enabled: !!chartConfig?.symbol,
+  });
+
   // 폼 제출 시 URL 업데이트
   const handleFormSubmit = (config: ChartConfig) => {
     const params = new URLSearchParams();
@@ -75,6 +89,9 @@ function HistoryDataContent() {
   // 차트 다시 로드
   const handleRefresh = () => {
     refetch();
+    if (isYieldmax) {
+      refetchDistribution();
+    }
   };
 
   // 설정 초기화
@@ -207,21 +224,33 @@ function HistoryDataContent() {
                           <span className="text-xl">📈</span>
                           <Heading level="h3">{chartConfig.symbol} 주요 지표</Heading>
                         </div>
-                        {metadata && (
-                          <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2">
+                          {isYieldmax && (
+                            <Badge size="small" color="orange">
+                              YieldMax ETF
+                            </Badge>
+                          )}
+                          {metadata && (
                             <Badge size="small" color="blue">
                               {metadata.dataPoints}개 데이터
                             </Badge>
-                            {metadata.fromCache && (
-                              <Badge size="small" color="green">
-                                캐시됨
-                              </Badge>
-                            )}
-                          </div>
-                        )}
+                          )}
+                          {metadata && metadata.fromCache && (
+                            <Badge size="small" color="green">
+                              캐시됨
+                            </Badge>
+                          )}
+                          {hasDistributionData && (
+                            <Badge size="small" color="purple">
+                              배당 {distributionData?.distributionHistory?.length || 0}개
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div
+                        className={`grid gap-4 ${isYieldmax && hasDistributionData ? 'grid-cols-2 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-4'}`}
+                      >
                         <div className="text-center p-4 bg-ui-bg-component border border-ui-border-base rounded-lg">
                           <Text size="xsmall" className="text-ui-fg-muted mb-1">
                             시작가
@@ -272,6 +301,29 @@ function HistoryDataContent() {
                             {statistics.volatility.toFixed(2)}%
                           </Text>
                         </div>
+
+                        {/* YieldMax ETF 추가 지표 */}
+                        {isYieldmax && hasDistributionData && distributionData && (
+                          <>
+                            <div className="text-center p-4 bg-ui-bg-component border border-ui-border-base rounded-lg">
+                              <Text size="xsmall" className="text-ui-fg-muted mb-1">
+                                배당률
+                              </Text>
+                              <Text size="large" weight="plus" className="text-orange-600 dark:text-orange-400">
+                                {distributionData.distributionRate.toFixed(2)}%
+                              </Text>
+                            </div>
+
+                            <div className="text-center p-4 bg-ui-bg-component border border-ui-border-base rounded-lg">
+                              <Text size="xsmall" className="text-ui-fg-muted mb-1">
+                                30일 SEC 수익률
+                              </Text>
+                              <Text size="large" weight="plus" className="text-ui-fg-base">
+                                {distributionData.secYield.toFixed(2)}%
+                              </Text>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </Container>
@@ -312,9 +364,62 @@ function HistoryDataContent() {
             )}
           </CollapseSection>
 
-          {/* 하단: 데이터 테이블 */}
+          {/* YieldMax ETF 배당 데이터 테이블 */}
+          {chartConfig && isYieldmax && hasDistributionData && distributionData && (
+            <CollapseSection title="배당 히스토리" defaultOpen={false}>
+              <Container>
+                <div className="space-y-3">
+                  {/* 배당 요약 정보 */}
+                  <div className="flex items-center justify-between p-4 bg-ui-bg-component border border-ui-border-base rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">💰</span>
+                      <div>
+                        <Heading level="h3">{chartConfig.symbol} 배당 정보</Heading>
+                        <Text size="small" className="text-ui-fg-muted">
+                          총 {distributionData.distributionHistory.length}개의 배당 기록
+                        </Text>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Text size="xsmall" className="text-ui-fg-muted">
+                        최근 배당 ({distributionData.distributionHistory[0]?.date || 'N/A'})
+                      </Text>
+                      <Text size="large" weight="plus" className="text-orange-600 dark:text-orange-400">
+                        ${(distributionData.distributionHistory[0]?.amount || 0).toFixed(4)}
+                      </Text>
+                    </div>
+                  </div>
+
+                  {/* 에러 처리 */}
+                  {distributionError && (
+                    <Container>
+                      <div className="text-center py-6">
+                        <Text className="text-ui-fg-error">{distributionError}</Text>
+                      </div>
+                    </Container>
+                  )}
+
+                  {/* 로딩 상태 */}
+                  {isDistributionLoading && (
+                    <Container>
+                      <div className="text-center py-6">
+                        <Text className="text-ui-fg-muted">배당 데이터를 불러오는 중...</Text>
+                      </div>
+                    </Container>
+                  )}
+
+                  {/* 배당 데이터 테이블 */}
+                  {!isDistributionLoading && !distributionError && (
+                    <DistributionDataTable data={distributionData.distributionHistory} symbol={chartConfig.symbol} />
+                  )}
+                </div>
+              </Container>
+            </CollapseSection>
+          )}
+
+          {/* 하단: 주가 데이터 테이블 */}
           {chartConfig && chartData && chartData.length > 0 && (
-            <CollapseSection title="데이터 테이블" defaultOpen={false}>
+            <CollapseSection title="주가 데이터 테이블" defaultOpen={false}>
               <StockDataTable data={chartData} symbol={chartConfig.symbol} />
             </CollapseSection>
           )}
