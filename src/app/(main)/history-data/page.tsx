@@ -165,9 +165,8 @@ export default function HistoryDataPage() {
                   {/* 빠른 시작 버튼들 */}
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     {[
-                      { symbol: 'AAPL', name: 'Apple' },
-                      { symbol: 'TSLA', name: 'Tesla' },
-                      { symbol: 'MSFT', name: 'Microsoft' },
+                      { symbol: 'YMAX', name: 'YMAX' },
+                      { symbol: 'ULTY', name: 'ULTY' },
                     ].map((stock) => (
                       <Button
                         key={stock.symbol}
@@ -176,7 +175,7 @@ export default function HistoryDataPage() {
                         onClick={() => {
                           const quickConfig: ChartConfig = {
                             symbol: stock.symbol,
-                            startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                            startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                             endDate: new Date().toISOString().split('T')[0],
                             interval: '1d',
                           };
