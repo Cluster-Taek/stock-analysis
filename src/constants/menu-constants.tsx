@@ -1,5 +1,5 @@
 import { INavItem } from '@/medusa/layout/nav-item';
-import { ChartBar, House } from '@medusajs/icons';
+import { ChartBar, ChartPie, House } from '@medusajs/icons';
 
 export interface IRoutes {
   title: string;
@@ -14,6 +14,11 @@ export const MENU_CONSTANTS: IRoutes[] = [
         icon: <House />,
         label: '메인',
         to: '/',
+      },
+      {
+        icon: <ChartPie />,
+        label: '백테스팅',
+        to: '/backtesting',
       },
       {
         icon: <ChartBar />,

@@ -25,7 +25,7 @@ export type HeadingProps = {
 
 export const Header = ({ title, subtitle, actions = [] }: HeadingProps) => {
   return (
-    <div className="flex items-center justify-between px-6 py-4">
+    <div className="flex items-center justify-between">
       <div>
         <Heading level="h2">{title}</Heading>
         {subtitle && (
