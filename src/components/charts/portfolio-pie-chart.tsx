@@ -105,7 +105,7 @@ export function PortfolioPieChart({
             size: 10,
             weight: 500,
           },
-          padding: 8,
+          padding: 12,
           usePointStyle: true,
           boxWidth: 8,
           boxHeight: 8,
