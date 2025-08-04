@@ -2,13 +2,16 @@
 
 import {
   ArcElement,
+  BarController,
   BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
   Legend,
+  LineController,
   LineElement,
   LinearScale,
+  PieController,
   PointElement,
   RadialLinearScale,
   Title,
@@ -22,11 +25,14 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  LineController,
   Title,
   Tooltip,
   Legend,
   BarElement,
+  BarController,
   ArcElement,
+  PieController,
   RadialLinearScale,
   Filler
 );
