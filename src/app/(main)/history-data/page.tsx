@@ -338,22 +338,6 @@ function HistoryDataContent() {
                     loading={isLoading}
                     error={error || undefined}
                     height={500}
-                    showVolume={false}
-                    showAdjustedClose={true}
-                  />
-                </div>
-              </Container>
-
-              {/* 볼륨 차트 */}
-              <Container>
-                <div className="space-y-4">
-                  <Heading level="h3">거래량 차트</Heading>
-                  <StockChart
-                    data={chartData}
-                    symbol={chartConfig.symbol}
-                    loading={isLoading}
-                    error={error || undefined}
-                    height={300}
                     showVolume={true}
                     showAdjustedClose={false}
                   />

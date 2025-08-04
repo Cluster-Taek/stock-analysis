@@ -1,5 +1,6 @@
 import {
   ArcElement,
+  BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
@@ -21,6 +22,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   ArcElement,
   Title,
   Tooltip,
@@ -219,6 +221,24 @@ export const createLineDataset = (
   fill,
   pointBackgroundColor: color,
   pointBorderColor: color,
+});
+
+// 막대 차트 데이터셋 생성 헬퍼
+export const createBarDataset = (
+  label: string,
+  data: { x: string | Date; y: number }[],
+  color: string = chartColors.primary,
+  yAxisID?: string,
+  order?: number
+) => ({
+  type: 'bar' as const,
+  label,
+  data,
+  backgroundColor: `${color}40`, // 투명도 추가
+  borderColor: color,
+  borderWidth: 1,
+  yAxisID,
+  ...(order !== undefined && { order }),
 });
 
 // 파이 차트 데이터셋 생성 헬퍼
