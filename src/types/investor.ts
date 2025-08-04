@@ -1,8 +1,8 @@
 export interface IInvestor {
+  id: string;
   name: string;
   initialCapital: number;
   portfolio: IPortfolioItem[];
-  backtestingResult?: IBacktestingResult;
 }
 
 export interface IPortfolioItem {
@@ -25,8 +25,10 @@ export const getPortfolioStrategyLabel = (strategy: PortfolioStrategy) => {
   return strategy === 'HOLD' ? '보유' : strategy === 'REINVESTMENT_STOCK' ? '일반주에 재투자' : '배당주에 재투자';
 };
 
-export interface IBacktestingParams {
-  investor: IInvestor;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface IBacktestingParams extends Record<string, any> {
+  initialCapital: number;
+  portfolio: IPortfolioItem[];
   startDate: string;
   endDate: string;
   interval: '1d' | '1wk' | '1mo';
