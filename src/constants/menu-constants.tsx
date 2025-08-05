@@ -1,5 +1,5 @@
 import { INavItem } from '@/medusa/layout/nav-item';
-import { ChartBar, ChartPie, House } from '@medusajs/icons';
+import { ChartBar, ChartPie, CommandLine, House } from '@medusajs/icons';
 
 export interface IRoutes {
   title: string;
@@ -24,6 +24,11 @@ export const MENU_CONSTANTS: IRoutes[] = [
         icon: <ChartBar />,
         label: '과거 데이터',
         to: '/history-data',
+      },
+      {
+        icon: <CommandLine />,
+        label: 'D3 차트 예제',
+        to: '/example',
       },
     ],
   },
