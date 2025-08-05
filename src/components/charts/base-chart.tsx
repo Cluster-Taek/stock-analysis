@@ -2,7 +2,8 @@
 
 import { defaultChartOptions } from '@/lib/chart-config';
 import { Skeleton } from '@/medusa/components/skeleton';
-import { ChartOptions } from 'chart.js';
+// ✨ 1. Chart.js에서 Plugin 타입을 가져옵니다.
+import { ChartOptions, Plugin } from 'chart.js';
 import React, { useId, useMemo } from 'react';
 import { Chart, Line } from 'react-chartjs-2';
 
@@ -14,6 +15,9 @@ interface BaseChartProps {
   loading?: boolean;
   error?: string;
   className?: string;
+  // ✨ 2. plugins prop을 받을 수 있도록 인터페이스에 추가합니다.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  plugins?: Plugin<any>[];
 }
 
 /**
@@ -27,38 +31,27 @@ export function BaseChart({
   loading = false,
   error,
   className = '',
+  // ✨ 3. props에서 plugins를 추출하고, 기본값으로 빈 배열을 설정합니다.
+  plugins = [],
 }: BaseChartProps) {
-  // 고유한 차트 ID 생성 (캔버스 재사용 오류 방지)
   const chartId = useId();
 
-  // 차트 타입 및 특수 차트 여부를 한 번에 계산
   const chartInfo = useMemo(() => {
+    // ... (기존 로직과 동일)
     if (!data?.datasets) {
-      return {
-        isSpecialChart: false,
-        chartType: 'line' as const,
-      };
+      return { isSpecialChart: false, chartType: 'line' as const };
     }
-
     const types = data.datasets.map((dataset: any) => dataset.type || 'line'); // eslint-disable-line @typescript-eslint/no-explicit-any
     const uniqueTypes = Array.from(new Set(types));
-
-    // Mixed chart이거나 Bar chart인 경우
     const isSpecialChart = uniqueTypes.length > 1 || uniqueTypes.includes('bar');
-
-    // 차트 타입 결정
     let chartType: 'line' | 'bar' = 'line';
     if (uniqueTypes.length === 1 && uniqueTypes[0] === 'bar') {
       chartType = 'bar';
     }
-
-    return {
-      isSpecialChart,
-      chartType,
-    };
+    return { isSpecialChart, chartType };
   }, [data]);
 
-  // 로딩 상태
+  // ... (로딩, 에러, 데이터 없음 상태는 기존과 동일)
   if (loading) {
     return (
       <div className={`w-full ${className}`} style={{ height, width }}>
@@ -66,8 +59,6 @@ export function BaseChart({
       </div>
     );
   }
-
-  // 에러 상태
   if (error) {
     return (
       <div
@@ -91,8 +82,6 @@ export function BaseChart({
       </div>
     );
   }
-
-  // 데이터가 없는 상태
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!data.datasets.length || data.datasets.every((dataset: any) => !dataset.data.length)) {
     return (
@@ -136,9 +125,22 @@ export function BaseChart({
   return (
     <div className={`w-full ${className}`} style={{ height, width }}>
       {chartInfo.isSpecialChart ? (
-        <Chart type={chartInfo.chartType as any} data={data} options={mergedOptions} id={chartId} /> // eslint-disable-line @typescript-eslint/no-explicit-any
+        <Chart
+          type={chartInfo.chartType as any} // eslint-disable-line @typescript-eslint/no-explicit-any
+          data={data}
+          options={mergedOptions}
+          id={chartId}
+          // ✨ 4. 전달받은 plugins를 Chart 컴포넌트에 넘겨줍니다.
+          plugins={plugins}
+        />
       ) : (
-        <Line data={data} options={mergedOptions} id={chartId} />
+        <Line
+          data={data}
+          options={mergedOptions}
+          id={chartId}
+          // ✨ 4. 전달받은 plugins를 Line 컴포넌트에도 넘겨줍니다.
+          plugins={plugins}
+        />
       )}
     </div>
   );

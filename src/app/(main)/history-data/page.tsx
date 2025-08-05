@@ -53,7 +53,6 @@ function HistoryDataContent() {
     metadata,
     statistics,
     isLoading,
-    error,
     refetch,
   } = useStockChart({
     symbol: chartConfig?.symbol || '',
@@ -332,15 +331,7 @@ function HistoryDataContent() {
               <Container>
                 <div className="space-y-4">
                   <Heading level="h3">가격 차트</Heading>
-                  <StockChart
-                    data={chartData}
-                    symbol={chartConfig.symbol}
-                    loading={isLoading}
-                    error={error || undefined}
-                    height={500}
-                    showVolume={true}
-                    showAdjustedClose={false}
-                  />
+                  <StockChart data={chartData} symbol={chartConfig.symbol} showVolume />
                 </div>
               </Container>
             </div>
