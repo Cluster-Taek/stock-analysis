@@ -71,7 +71,6 @@ export function StockD3Chart({
   showVolume = false,
   showAdjustedClose = false,
 }: StockD3ChartProps) {
-  const { theme } = useTheme();
 
   // 정렬된 데이터
   const sortedData = useMemo(() => {
@@ -87,7 +86,11 @@ export function StockD3Chart({
   }, [sortedData, showVolume]);
 
   // 메인 차트 설정
-  const { svgRef: mainSvgRef, containerRef: mainContainerRef, drawChart: drawMainChart } = useD3Chart({
+  const {
+    svgRef: mainSvgRef,
+    containerRef: mainContainerRef,
+    drawChart: drawMainChart,
+  } = useD3Chart({
     data: sortedData,
     config: {
       margins: { top: 20, right: showVolume ? 80 : 60, bottom: 60, left: 80 },
@@ -96,7 +99,11 @@ export function StockD3Chart({
   });
 
   // 거래량 차트 설정 (가격별 거래량)
-  const { svgRef: volumeSvgRef, containerRef: volumeContainerRef, drawChart: drawVolumeChart } = useD3Chart({
+  const {
+    svgRef: volumeSvgRef,
+    containerRef: volumeContainerRef,
+    drawChart: drawVolumeChart,
+  } = useD3Chart({
     data: volumeByPriceData,
     config: {
       margins: { top: 20, right: 20, bottom: 60, left: 60 },
@@ -110,18 +117,16 @@ export function StockD3Chart({
 
     const cleanup = drawMainChart(({ data, g, dimensions, scales, axes, grid, colors, animate, tooltip }) => {
       // 시간 스케일
-      const xScale = scales.time()
-        .domain(d3.extent(data, (d) => new Date(d.date)) as [Date, Date]);
+      const xScale = scales.time().domain(d3.extent(data, (d) => new Date(d.date)) as [Date, Date]);
 
       // 가격 스케일
-      const priceExtent = d3.extent(data.flatMap(d => [d.high, d.low])) as [number, number];
-      const yScale = scales.linear()
-        .domain(priceExtent)
-        .nice();
+      const priceExtent = d3.extent(data.flatMap((d) => [d.high, d.low])) as [number, number];
+      const yScale = scales.linear().domain(priceExtent).nice();
 
       // 거래량 스케일 (오른쪽 축)
-      const volumeScale = scales.linear()
-        .domain([0, d3.max(data, d => d.volume) as number])
+      const volumeScale = scales
+        .linear()
+        .domain([0, d3.max(data, (d) => d.volume) as number])
         .range([dimensions.innerHeight, dimensions.innerHeight * 0.7]);
 
       // 그리드
@@ -139,12 +144,14 @@ export function StockD3Chart({
       });
 
       // 종가 선 그리기
-      const closeLine = d3.line<HistoricalDataPoint>()
-        .x(d => xScale(new Date(d.date)))
-        .y(d => yScale(d.close))
+      const closeLine = d3
+        .line<HistoricalDataPoint>()
+        .x((d) => xScale(new Date(d.date)))
+        .y((d) => yScale(d.close))
         .curve(d3.curveMonotoneX);
 
-      const closePath = g.append('path')
+      const closePath = g
+        .append('path')
         .datum(data)
         .attr('fill', 'none')
         .attr('stroke', colors.primary)
@@ -152,9 +159,10 @@ export function StockD3Chart({
         .attr('d', closeLine);
 
       // 시가 선 그리기
-      const openLine = d3.line<HistoricalDataPoint>()
-        .x(d => xScale(new Date(d.date)))
-        .y(d => yScale(d.open))
+      const openLine = d3
+        .line<HistoricalDataPoint>()
+        .x((d) => xScale(new Date(d.date)))
+        .y((d) => yScale(d.open))
         .curve(d3.curveMonotoneX);
 
       g.append('path')
@@ -167,9 +175,10 @@ export function StockD3Chart({
 
       // 조정종가 선 그리기 (선택적)
       if (showAdjustedClose) {
-        const adjCloseLine = d3.line<HistoricalDataPoint>()
-          .x(d => xScale(new Date(d.date)))
-          .y(d => yScale(d.adjustedClose))
+        const adjCloseLine = d3
+          .line<HistoricalDataPoint>()
+          .x((d) => xScale(new Date(d.date)))
+          .y((d) => yScale(d.adjustedClose))
           .curve(d3.curveMonotoneX);
 
         g.append('path')
@@ -182,23 +191,21 @@ export function StockD3Chart({
 
       // 선 애니메이션
       const totalLength = closePath.node()?.getTotalLength() || 0;
-      closePath
-        .attr('stroke-dasharray', `${totalLength} ${totalLength}`)
-        .attr('stroke-dashoffset', totalLength);
+      closePath.attr('stroke-dasharray', `${totalLength} ${totalLength}`).attr('stroke-dashoffset', totalLength);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       animate(closePath as any).attr('stroke-dashoffset', 0);
 
       // 거래량 막대 (선택적)
       if (showVolume) {
-        const barWidth = dimensions.innerWidth / data.length * 0.6;
+        const barWidth = (dimensions.innerWidth / data.length) * 0.6;
 
         g.selectAll('.volume-bar')
           .data(data)
           .enter()
           .append('rect')
           .attr('class', 'volume-bar')
-          .attr('x', d => xScale(new Date(d.date)) - barWidth / 2)
+          .attr('x', (d) => xScale(new Date(d.date)) - barWidth / 2)
           .attr('width', barWidth)
           .attr('y', dimensions.innerHeight)
           .attr('height', 0)
@@ -211,13 +218,12 @@ export function StockD3Chart({
           .attr('height', (d: HistoricalDataPoint) => dimensions.innerHeight - volumeScale(d.volume));
 
         // 거래량 축 (오른쪽)
-        const volumeAxis = d3.axisRight(volumeScale)
-          .tickFormat((d) => {
-            const num = Number(d);
-            if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-            if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-            return num.toLocaleString();
-          });
+        const volumeAxis = d3.axisRight(volumeScale).tickFormat((d) => {
+          const num = Number(d);
+          if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+          if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+          return num.toLocaleString();
+        });
 
         g.append('g')
           .attr('class', 'volume-axis')
@@ -233,16 +239,16 @@ export function StockD3Chart({
         .enter()
         .append('circle')
         .attr('class', 'data-point')
-        .attr('cx', d => xScale(new Date(d.date)))
-        .attr('cy', d => yScale(d.close))
+        .attr('cx', (d) => xScale(new Date(d.date)))
+        .attr('cy', (d) => yScale(d.close))
         .attr('r', 0)
         .attr('fill', colors.primary)
         .attr('stroke', colors.background)
         .attr('stroke-width', 2)
         .style('cursor', 'pointer')
-        .on('mouseover', function(event, d) {
+        .on('mouseover', function (event, d) {
           d3.select(this).attr('r', 6);
-          
+
           const change = d.close - d.open;
           const changePercent = (change / d.open) * 100;
           const changeText = change >= 0 ? `+$${change.toFixed(2)}` : `-$${Math.abs(change).toFixed(2)}`;
@@ -259,14 +265,14 @@ export function StockD3Chart({
             <div>거래량: ${d.volume.toLocaleString()}</div>
             ${showAdjustedClose ? `<div>조정종가: $${d.adjustedClose.toFixed(2)}</div>` : ''}
           `;
-          
+
           tooltip.show(content, event);
         })
-        .on('mouseout', function() {
+        .on('mouseout', function () {
           d3.select(this).attr('r', 4);
           tooltip.hide();
         })
-        .on('mousemove', function(event) {
+        .on('mousemove', function (event) {
           tooltip.move(event);
         });
 
@@ -274,9 +280,7 @@ export function StockD3Chart({
       animate(g.selectAll('.data-point') as any).attr('r', 4);
 
       // 범례
-      const legend = g.append('g')
-        .attr('class', 'legend')
-        .attr('transform', `translate(10, 10)`);
+      const legend = g.append('g').attr('class', 'legend').attr('transform', `translate(10, 10)`);
 
       const legendItems = [
         { label: `${symbol} 종가`, color: colors.primary, style: 'solid' },
@@ -288,10 +292,10 @@ export function StockD3Chart({
       }
 
       legendItems.forEach((item, i) => {
-        const legendItem = legend.append('g')
-          .attr('transform', `translate(0, ${i * 20})`);
+        const legendItem = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
 
-        legendItem.append('line')
+        legendItem
+          .append('line')
           .attr('x1', 0)
           .attr('x2', 20)
           .attr('y1', 0)
@@ -300,7 +304,8 @@ export function StockD3Chart({
           .attr('stroke-width', 2)
           .attr('stroke-dasharray', item.style === 'dashed' ? '5,5' : 'none');
 
-        legendItem.append('text')
+        legendItem
+          .append('text')
           .attr('x', 25)
           .attr('y', 0)
           .attr('dy', '0.35em')
@@ -319,13 +324,15 @@ export function StockD3Chart({
 
     const cleanup = drawVolumeChart(({ data, g, dimensions, scales, axes, colors, animate }) => {
       // 가격 스케일 (Y축, 수직)
-      const yScale = scales.linear()
-        .domain(d3.extent(data, d => d.priceRange) as [number, number])
+      const yScale = scales
+        .linear()
+        .domain(d3.extent(data, (d) => d.priceRange) as [number, number])
         .range([dimensions.innerHeight, 0]);
 
       // 거래량 스케일 (X축, 수평)
-      const xScale = scales.linear()
-        .domain([0, d3.max(data, d => d.volume) as number])
+      const xScale = scales
+        .linear()
+        .domain([0, d3.max(data, (d) => d.volume) as number])
         .range([0, dimensions.innerWidth]);
 
       // 축
@@ -345,7 +352,7 @@ export function StockD3Chart({
       });
 
       // 수평 막대 그리기
-      const barHeight = dimensions.innerHeight / data.length * 0.8;
+      const barHeight = (dimensions.innerHeight / data.length) * 0.8;
 
       g.selectAll('.volume-bar')
         .data(data)
@@ -353,7 +360,7 @@ export function StockD3Chart({
         .append('rect')
         .attr('class', 'volume-bar')
         .attr('x', 0)
-        .attr('y', d => yScale(d.priceRangeEnd) - barHeight / 2)
+        .attr('y', (d) => yScale(d.priceRangeEnd) - barHeight / 2)
         .attr('width', 0)
         .attr('height', barHeight)
         .attr('fill', colors.warning)
@@ -363,8 +370,7 @@ export function StockD3Chart({
 
       // 애니메이션
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animate(g.selectAll('.volume-bar') as any)
-        .attr('width', (d: any) => xScale(d.volume));
+      animate(g.selectAll('.volume-bar') as any).attr('width', (d: any) => xScale(d.volume));
 
       // 제목
       g.append('text')

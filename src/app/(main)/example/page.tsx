@@ -1,9 +1,9 @@
 'use client';
 
-import { useD3Chart, chartTypes } from '@/components/d3charts';
 import { StockD3Chart } from '@/components/charts';
+import { chartTypes, useD3Chart } from '@/components/d3charts';
 import { Container } from '@medusajs/ui';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // D3를 동적으로 import
 let d3: typeof import('d3');
@@ -86,20 +86,19 @@ function LineChartExample() {
   });
 
   useEffect(() => {
-    const cleanup = drawChart(chartTypes.line(lineChartData, {
-      showDots: true,
-    }).draw);
-    
+    const cleanup = drawChart(
+      chartTypes.line(lineChartData, {
+        showDots: true,
+      }).draw
+    );
+
     return cleanup;
   }, [drawChart]);
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">선 차트 (Line Chart)</h3>
-      <div 
-        ref={containerRef} 
-        className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-      >
+      <div ref={containerRef} className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <svg ref={svgRef} className="w-full h-full" />
       </div>
     </div>
@@ -123,10 +122,7 @@ function BarChartExample() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">막대 차트 (Bar Chart)</h3>
-      <div 
-        ref={containerRef} 
-        className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-      >
+      <div ref={containerRef} className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <svg ref={svgRef} className="w-full h-full" />
       </div>
     </div>
@@ -143,19 +139,18 @@ function PieChartExample() {
   });
 
   useEffect(() => {
-    const cleanup = drawChart(chartTypes.pie(pieChartData, {
-      showLabels: true,
-    }).draw);
+    const cleanup = drawChart(
+      chartTypes.pie(pieChartData, {
+        showLabels: true,
+      }).draw
+    );
     return cleanup;
   }, [drawChart]);
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">파이 차트 (Pie Chart)</h3>
-      <div 
-        ref={containerRef} 
-        className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-      >
+      <div ref={containerRef} className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <svg ref={svgRef} className="w-full h-full" />
       </div>
     </div>
@@ -172,20 +167,19 @@ function DonutChartExample() {
   });
 
   useEffect(() => {
-    const cleanup = drawChart(chartTypes.pie(pieChartData, {
-      innerRadius: 60,
-      showLabels: false,
-    }).draw);
+    const cleanup = drawChart(
+      chartTypes.pie(pieChartData, {
+        innerRadius: 60,
+        showLabels: false,
+      }).draw
+    );
     return cleanup;
   }, [drawChart]);
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">도넛 차트 (Donut Chart)</h3>
-      <div 
-        ref={containerRef} 
-        className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-      >
+      <div ref={containerRef} className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <svg ref={svgRef} className="w-full h-full" />
       </div>
     </div>
@@ -197,13 +191,7 @@ function D3StockChartExample() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">D3 스톡 차트 (거래량 포함)</h3>
-      <StockD3Chart
-        data={realStockData}
-        symbol="AAPL"
-        showVolume={true}
-        showAdjustedClose={true}
-        height={400}
-      />
+      <StockD3Chart data={realStockData} symbol="AAPL" showVolume={true} showAdjustedClose={true} height={400} />
     </div>
   );
 }
@@ -213,13 +201,7 @@ function D3StockChartBasic() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">D3 스톡 차트 (기본)</h3>
-      <StockD3Chart
-        data={realStockData}
-        symbol="AAPL"
-        showVolume={false}
-        showAdjustedClose={false}
-        height={400}
-      />
+      <StockD3Chart data={realStockData} symbol="AAPL" showVolume={false} showAdjustedClose={false} height={400} />
     </div>
   );
 }
@@ -236,17 +218,18 @@ function CustomStockChart() {
   useEffect(() => {
     const cleanup = drawChart(({ data, g, dimensions, scales, axes, grid, colors, animate }) => {
       if (!d3) return;
-      
+
       // 시간 스케일과 선형 스케일 설정
-      const xScale = scales.time()
-        .domain(d3.extent(data, d => d.date) as [Date, Date]);
-      
-      const yScale = scales.linear()
-        .domain(d3.extent(data, d => d.price) as [number, number])
+      const xScale = scales.time().domain(d3.extent(data, (d) => d.date) as [Date, Date]);
+
+      const yScale = scales
+        .linear()
+        .domain(d3.extent(data, (d) => d.price) as [number, number])
         .nice();
 
-      const volumeScale = scales.linear()
-        .domain([0, d3.max(data, d => d.volume) as number])
+      const volumeScale = scales
+        .linear()
+        .domain([0, d3.max(data, (d) => d.volume) as number])
         .range([dimensions.innerHeight, dimensions.innerHeight * 0.7]);
 
       // 그리드
@@ -263,12 +246,14 @@ function CustomStockChart() {
       });
 
       // 가격 선 그리기
-      const line = d3.line<typeof data[0]>()
-        .x(d => xScale(d.date))
-        .y(d => yScale(d.price))
+      const line = d3
+        .line<(typeof data)[0]>()
+        .x((d) => xScale(d.date))
+        .y((d) => yScale(d.price))
         .curve(d3.curveMonotoneX);
 
-      const path = g.append('path')
+      const path = g
+        .append('path')
         .datum(data)
         .attr('fill', 'none')
         .attr('stroke', colors.primary)
@@ -277,9 +262,7 @@ function CustomStockChart() {
 
       // 선 애니메이션
       const totalLength = path.node()?.getTotalLength() || 0;
-      path
-        .attr('stroke-dasharray', `${totalLength} ${totalLength}`)
-        .attr('stroke-dashoffset', totalLength);
+      path.attr('stroke-dasharray', `${totalLength} ${totalLength}`).attr('stroke-dashoffset', totalLength);
 
       animate(path).attr('stroke-dashoffset', 0);
 
@@ -289,7 +272,7 @@ function CustomStockChart() {
         .enter()
         .append('rect')
         .attr('class', 'volume-bar')
-        .attr('x', d => xScale(d.date) - 2)
+        .attr('x', (d) => xScale(d.date) - 2)
         .attr('width', 4)
         .attr('y', dimensions.innerHeight)
         .attr('height', 0)
@@ -297,8 +280,8 @@ function CustomStockChart() {
         .attr('opacity', 0.6);
 
       animate(g.selectAll('.volume-bar'))
-        .attr('y', d => volumeScale(d.volume))
-        .attr('height', d => dimensions.innerHeight - volumeScale(d.volume));
+        .attr('y', (d) => volumeScale(d.volume))
+        .attr('height', (d) => dimensions.innerHeight - volumeScale(d.volume));
 
       // 데이터 포인트
       g.selectAll('.price-dot')
@@ -306,15 +289,15 @@ function CustomStockChart() {
         .enter()
         .append('circle')
         .attr('class', 'price-dot')
-        .attr('cx', d => xScale(d.date))
-        .attr('cy', d => yScale(d.price))
+        .attr('cx', (d) => xScale(d.date))
+        .attr('cy', (d) => yScale(d.price))
         .attr('r', 0)
         .attr('fill', colors.primary)
-        .on('mouseover', function(_event, _d) {
+        .on('mouseover', function (_event, _d) {
           // 간단한 툴팁 효과
           d3.select(this).attr('r', 6);
         })
-        .on('mouseout', function() {
+        .on('mouseout', function () {
           d3.select(this).attr('r', 4);
         });
 
@@ -327,10 +310,7 @@ function CustomStockChart() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">커스텀 스톡 차트 (Custom Stock Chart)</h3>
-      <div 
-        ref={containerRef} 
-        className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-      >
+      <div ref={containerRef} className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <svg ref={svgRef} className="w-full h-full" />
       </div>
     </div>
@@ -351,15 +331,17 @@ function AnimationDemo() {
   });
 
   useEffect(() => {
-    const cleanup = drawChart(chartTypes.line(animatedData, {
-      showDots: true,
-    }).draw);
+    const cleanup = drawChart(
+      chartTypes.line(animatedData, {
+        showDots: true,
+      }).draw
+    );
     return cleanup;
   }, [drawChart, animatedData]);
 
   const addDataPoint = () => {
     if (animatedData.length < lineChartData.length) {
-      setAnimatedData(prev => [...prev, lineChartData[prev.length]]);
+      setAnimatedData((prev) => [...prev, lineChartData[prev.length]]);
     }
   };
 
@@ -379,18 +361,12 @@ function AnimationDemo() {
           >
             데이터 추가
           </button>
-          <button
-            onClick={resetData}
-            className="px-4 py-2 bg-gray-500 text-white rounded"
-          >
+          <button onClick={resetData} className="px-4 py-2 bg-gray-500 text-white rounded">
             리셋
           </button>
         </div>
       </div>
-      <div 
-        ref={containerRef} 
-        className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-      >
+      <div ref={containerRef} className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <svg ref={svgRef} className="w-full h-full" />
       </div>
     </div>
@@ -411,12 +387,12 @@ export default function ExamplePage() {
         <div className="grid gap-8">
           <LineChartExample />
           <BarChartExample />
-          
+
           <div className="grid md:grid-cols-2 gap-8">
             <PieChartExample />
             <DonutChartExample />
           </div>
-          
+
           <D3StockChartExample />
           <D3StockChartBasic />
           <CustomStockChart />
@@ -426,7 +402,7 @@ export default function ExamplePage() {
         <div className="mt-12 p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <h3 className="text-lg font-semibold mb-4">사용법</h3>
           <pre className="bg-gray-100 dark:bg-gray-900 p-4 rounded text-sm overflow-x-auto">
-{`import { useD3Chart, chartTypes } from '@/components/d3charts';
+            {`import { useD3Chart, chartTypes } from '@/components/d3charts';
 
 function MyChart() {
   const { svgRef, containerRef, drawChart } = useD3Chart({
