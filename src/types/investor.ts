@@ -1,14 +1,14 @@
 export interface IInvestor {
   id: string;
   name: string;
-  initialCapital: number;
+  initialCapital?: number; // 포트폴리오 기반 자동 계산으로 변경
   portfolio: IPortfolioItem[];
 }
 
 export interface IPortfolioItem {
   symbol: string;
   type: PortfolioType;
-  quantity: number;
+  amount: number; // 수량에서 금액으로 변경
   strategy?: PortfolioStrategy;
   subPortfolio?: IPortfolioItem[];
 }
@@ -27,7 +27,7 @@ export const getPortfolioStrategyLabel = (strategy: PortfolioStrategy) => {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface IBacktestingParams extends Record<string, any> {
-  initialCapital: number;
+  initialCapital?: number; // 포트폴리오 기반 자동 계산으로 변경
   portfolio: IPortfolioItem[];
   startDate: string;
   endDate: string;

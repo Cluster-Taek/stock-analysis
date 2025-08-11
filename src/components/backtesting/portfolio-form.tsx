@@ -1,23 +1,17 @@
+import MultiSelect from '../common/multi-select';
 import { ControlledInput } from '@/components/common/controlled-input';
 import { ControlledSelectBox } from '@/components/common/controlled-select-box';
 import { SymbolSearchInput } from '@/components/common/symbol-search-input';
+import { YIELDMAX_SYMBOLS } from '@/constants/yieldmax-constants';
 import { useAlert } from '@/contexts/alert-provider';
-import { 
-  IPortfolioItem, 
-  PortfolioType, 
-  PortfolioStrategy,
-  PORTFOLIO_TYPES,
-  PORTFOLIO_STATEGYS,
-  getPortfolioTypeLabel,
-  getPortfolioStrategyLabel
-} from '@/types/investor';
+import { IPortfolioItem, PORTFOLIO_STATEGYS, PortfolioStrategy, getPortfolioStrategyLabel } from '@/types/investor';
+import { isYieldmaxSymbol } from '@/utils/yieldmax-utils';
 import { Button, Drawer, Input, Label } from '@medusajs/ui';
 import { useEffect, useState } from 'react';
-import { Controller, FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 
 interface IPortfolioFormValue {
   name: string;
-  initialCapital: number;
   portfolio: IPortfolioItem[];
   startDate: string;
   endDate: string;
@@ -45,7 +39,6 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
   const form = useForm<IPortfolioFormValue>({
     defaultValues: {
       name: '',
-      initialCapital: 10000,
       portfolio: [],
       startDate: '',
       endDate: '',
@@ -62,9 +55,13 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
       return;
     }
 
+    // 포트폴리오 총 금액으로 초기 자본 자동 계산
+    const initialCapital = portfolioItems.reduce((total, item) => total + item.amount, 0);
+
     const submitData = {
       ...value,
       portfolio: portfolioItems,
+      initialCapital,
     };
 
     onSubmit(submitData);
@@ -80,7 +77,7 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
     const newItem: IPortfolioItem = {
       symbol: '',
       type: 'STOCK',
-      quantity: 0,
+      amount: 0,
       strategy: 'HOLD',
     };
     setPortfolioItems([...portfolioItems, newItem]);
@@ -88,6 +85,19 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
 
   const updatePortfolioItem = (index: number, updatedItem: Partial<IPortfolioItem>) => {
     const newItems = [...portfolioItems];
+
+    // 심볼이 변경된 경우 자동으로 타입 및 투자 전략 설정
+    if (updatedItem.symbol) {
+      const isYieldMax = YIELDMAX_SYMBOLS.some((yieldmax) => yieldmax.symbol === updatedItem.symbol);
+      if (isYieldMax) {
+        updatedItem.type = 'DIVIDEND';
+      } else {
+        // 일반주의 경우 기본 전략 유지 (사용자가 선택할 수 있도록)
+        updatedItem.type = 'STOCK';
+        updatedItem.strategy = 'HOLD';
+      }
+    }
+
     newItems[index] = { ...newItems[index], ...updatedItem };
     setPortfolioItems(newItems);
   };
@@ -136,32 +146,23 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                   />
                 </div>
 
-                {/* 초기 자본금 */}
-                <div className="flex w-full gap-4">
-                  <Controller
-                    control={form.control}
-                    name="initialCapital"
-                    rules={{ required: '초기 자본금은 필수값입니다', min: { value: 1, message: '1 이상의 값을 입력해주세요' } }}
-                    render={({ field: { onChange, ...field } }) => (
-                      <div className="flex flex-col w-full space-y-2">
-                        <div className="flex items-center gap-x-1">
-                          <Label size="small" weight="plus">
-                            초기 자본금 ($)
-                          </Label>
-                        </div>
-                        <Input
-                          {...field}
-                          type="number"
-                          placeholder="초기 자본금을 입력해주세요"
-                          onChange={(e) => onChange(Number(e.target.value))}
-                        />
-                        {form.formState.errors.initialCapital && (
-                          <div className="text-xs text-red-500">{form.formState.errors.initialCapital.message}</div>
-                        )}
+                {/* 자동 계산된 초기 자본금 표시 */}
+                {portfolioItems.length > 0 && (
+                  <div className="flex w-full gap-4">
+                    <div className="flex flex-col w-full space-y-2">
+                      <div className="flex items-center gap-x-1">
+                        <Label size="small" weight="plus">
+                          총 투자금액 (자동 계산)
+                        </Label>
                       </div>
-                    )}
-                  />
-                </div>
+                      <div className="px-3 py-2 bg-ui-bg-subtle border border-ui-border-base rounded-md">
+                        <span className="text-ui-fg-base font-medium">
+                          ${portfolioItems.reduce((total, item) => total + item.amount, 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 백테스팅 기간 */}
                 <div className="flex w-full gap-4">
@@ -211,9 +212,9 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                   </div>
 
                   {portfolioItems.map((item, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-4">
+                    <div key={index} className="border rounded-md p-3 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium">종목 {index + 1}</h4>
+                        <h4 className="text-sm font-medium">종목 {index + 1}</h4>
                         <Button
                           type="button"
                           variant="secondary"
@@ -224,74 +225,64 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                         </Button>
                       </div>
 
-                      {/* 주식 심볼 */}
-                      <div className="flex flex-col space-y-2">
-                        <Label size="small" weight="plus">
-                          주식 심볼
-                        </Label>
-                        <SymbolSearchInput
-                          value={item.symbol}
-                          onChange={(symbol) => updatePortfolioItem(index, { symbol })}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* 포트폴리오 타입 */}
-                        <div className="flex flex-col space-y-2">
+                      {/* 컴팩트한 그리드 레이아웃 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {/* 주식 심볼 */}
+                        <div className="flex flex-col space-y-1">
                           <Label size="small" weight="plus">
-                            타입
+                            주식 심볼
                           </Label>
-                          <select
-                            value={item.type}
-                            onChange={(e) => updatePortfolioItem(index, { type: e.target.value as PortfolioType })}
-                            className="px-3 py-2 border rounded-md"
-                          >
-                            {PORTFOLIO_TYPES.map((type) => (
-                              <option key={type} value={type}>
-                                {getPortfolioTypeLabel(type as PortfolioType)}
-                              </option>
-                            ))}
-                          </select>
+                          <SymbolSearchInput
+                            value={item.symbol}
+                            onChange={(symbol) => updatePortfolioItem(index, { symbol })}
+                          />
                         </div>
 
-                        {/* 수량 */}
-                        <div className="flex flex-col space-y-2">
+                        {/* 투자 금액 */}
+                        <div className="flex flex-col space-y-1">
                           <Label size="small" weight="plus">
-                            수량
+                            투자 금액 ($)
                           </Label>
                           <Input
                             type="number"
-                            value={item.quantity}
-                            onChange={(e) => updatePortfolioItem(index, { quantity: Number(e.target.value) })}
-                            placeholder="수량을 입력해주세요"
+                            size="small"
+                            value={item.amount}
+                            onChange={(e) => updatePortfolioItem(index, { amount: Number(e.target.value) })}
+                            placeholder="투자 금액"
                           />
                         </div>
                       </div>
 
                       {/* 투자 전략 */}
-                      <div className="flex flex-col space-y-2">
+                      <div className="flex flex-col space-y-1">
                         <Label size="small" weight="plus">
                           투자 전략
                         </Label>
-                        <select
+                        <MultiSelect
                           value={item.strategy || 'HOLD'}
-                          onChange={(e) => updatePortfolioItem(index, { strategy: e.target.value as PortfolioStrategy })}
-                          className="px-3 py-2 border rounded-md"
+                          onValueChange={(value) =>
+                            updatePortfolioItem(index, { strategy: value as PortfolioStrategy })
+                          }
+                          disabled={!isYieldmaxSymbol(item.symbol)}
+                          searchable={false}
+                          multiple={false}
                         >
-                          {PORTFOLIO_STATEGYS.map((strategy) => (
-                            <option key={strategy} value={strategy}>
-                              {getPortfolioStrategyLabel(strategy as PortfolioStrategy)}
-                            </option>
-                          ))}
-                        </select>
+                          <MultiSelect.Trigger>
+                            <MultiSelect.Value placeholder="투자 전략을 선택해주세요" />
+                          </MultiSelect.Trigger>
+                          <MultiSelect.Content>
+                            {PORTFOLIO_STATEGYS.map((strategy) => (
+                              <MultiSelect.Item key={strategy} value={strategy}>
+                                {getPortfolioStrategyLabel(strategy as PortfolioStrategy)}
+                              </MultiSelect.Item>
+                            ))}
+                          </MultiSelect.Content>
+                        </MultiSelect>
                       </div>
                     </div>
                   ))}
-
                   {portfolioItems.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      포트폴리오에 추가할 종목을 선택해주세요
-                    </div>
+                    <div className="text-center py-8 text-gray-500">포트폴리오에 추가할 종목을 선택해주세요</div>
                   )}
                 </div>
               </div>

@@ -84,11 +84,11 @@ export function PortfolioPieChart({
 
   // 포트폴리오 데이터를 파이 차트 형식으로 변환
   const symbols = portfolio.map((item) => item.symbol);
-  const quantities = portfolio.map((item) => item.quantity);
+  const amounts = portfolio.map((item) => item.amount);
 
   const data = {
     labels: symbols,
-    datasets: [createPieDataset(quantities, portfolioColors)],
+    datasets: [createPieDataset(amounts, portfolioColors)],
   };
 
   // 파이 차트 옵션 (컴팩트 버전)

@@ -1,108 +1,178 @@
 'use client';
 
-import { ControlledSelectBox } from '../common/controlled-select-box';
-import { PortfolioSelector } from '../common/portfolio-selector';
+import { PortfolioForm } from './portfolio-form';
 import { IBacktestingParams } from '@/types/investor';
-import { ChevronDown } from '@medusajs/icons';
-import { Button, Container, Heading, Input, Text } from '@medusajs/ui';
+import { ChevronDown, Plus } from '@medusajs/icons';
+import { Button, Container, Heading, Text } from '@medusajs/ui';
 import { useState } from 'react';
-import { Controller, FormProvider, useForm } from 'react-hook-form';
 
 const BacktestingHeader = () => {
   const [open, setOpen] = useState(true);
+  const [isPortfolioFormOpen, setIsPortfolioFormOpen] = useState(false);
+  const [portfolioData, setPortfolioData] = useState<IBacktestingParams | null>(null);
+  const [isBacktesting, setIsBacktesting] = useState(false);
 
-  const form = useForm<IBacktestingParams>({
-    defaultValues: {},
-  });
+  const handlePortfolioSubmit = async (data: IBacktestingParams) => {
+    setIsBacktesting(true);
 
-  const handleSubmit = form.handleSubmit((data) => {
-    console.log(data);
-  });
+    try {
+      // 백테스팅 로직 실행
+      console.log('백테스팅 데이터:', data);
+      setPortfolioData(data);
+      setIsPortfolioFormOpen(false);
 
-  const handleReset = () => {
-    form.reset();
+      // TODO: 실제 백테스팅 API 호출
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // 시뮬레이션
+    } catch (error) {
+      console.error('백테스팅 실행 중 오류:', error);
+    } finally {
+      setIsBacktesting(false);
+    }
+  };
+
+  const handleNewPortfolio = () => {
+    setIsPortfolioFormOpen(true);
+  };
+
+  const handleEditPortfolio = () => {
+    setIsPortfolioFormOpen(true);
   };
 
   return (
-    <FormProvider {...form}>
-      <form onSubmit={handleSubmit}>
-        <Container className="w-full p-0 divide-y">
-          <div className="flex items-center justify-between px-6 py-4">
-            <Heading level="h1" className="text-ui-fg-base">
-              백테스팅
-            </Heading>
-            <div>
-              <Button type="button" size="small" variant="transparent" onClick={() => setOpen(!open)}>
-                {open ? '닫기' : '열기'}
-                <ChevronDown
-                  fontSize={15}
-                  className={`transition-transform ${open ? 'transform rotate-180' : 'transform rotate-0'}`}
-                />
-              </Button>
-            </div>
+    <>
+      <Container className="w-full p-0 divide-y">
+        <div className="flex items-center justify-between px-6 py-4">
+          <Heading level="h1" className="text-ui-fg-base">
+            백테스팅
+          </Heading>
+          <div className="flex items-center gap-2">
+            <Button type="button" size="small" variant="secondary" onClick={handleNewPortfolio}>
+              <Plus className="w-4 h-4" />새 포트폴리오
+            </Button>
+            <Button type="button" size="small" variant="transparent" onClick={() => setOpen(!open)}>
+              {open ? '닫기' : '열기'}
+              <ChevronDown
+                fontSize={15}
+                className={`transition-transform ${open ? 'transform rotate-180' : 'transform rotate-0'}`}
+              />
+            </Button>
           </div>
-          <></>
-          {open && (
-            <>
-              <div className="flex flex-col gap-4 py-4">
-                <div className="flex flex-col w-full gap-2 px-6">
-                  <Text className="text-ui-fg-subtle">포트폴리오</Text>
-                  <PortfolioSelector value={[]} onChange={() => {}} />
+        </div>
+
+        {open && (
+          <div className="px-6 py-4">
+            {portfolioData ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Text className="text-ui-fg-base font-medium">현재 포트폴리오: {portfolioData.name}</Text>
+                  <Button type="button" size="small" variant="secondary" onClick={handleEditPortfolio}>
+                    수정
+                  </Button>
                 </div>
-                <div className="flex flex-col w-full gap-2 px-6">
-                  <Text className="text-ui-fg-subtle">초기 투자금</Text>
-                  <Controller
-                    control={form.control}
-                    name="initialCapital"
-                    render={({ field: { ...field } }) => {
-                      return <Input type="number" disabled {...field} />;
-                    }}
-                  />
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-3 bg-ui-bg-subtle rounded-lg">
+                    <Text className="text-ui-fg-muted text-xs">초기 자본금</Text>
+                    <Text className="text-ui-fg-base font-medium">
+                      $
+                      {(
+                        portfolioData.initialCapital ||
+                        portfolioData.portfolio?.reduce((total, item) => total + item.amount, 0) ||
+                        0
+                      ).toLocaleString()}
+                    </Text>
+                  </div>
+                  <div className="p-3 bg-ui-bg-subtle rounded-lg">
+                    <Text className="text-ui-fg-muted text-xs">백테스팅 기간</Text>
+                    <Text className="text-ui-fg-base font-medium">
+                      {portfolioData.startDate} ~ {portfolioData.endDate}
+                    </Text>
+                  </div>
+                  <div className="p-3 bg-ui-bg-subtle rounded-lg">
+                    <Text className="text-ui-fg-muted text-xs">데이터 간격</Text>
+                    <Text className="text-ui-fg-base font-medium">
+                      {portfolioData.interval === '1d' ? '일별' : portfolioData.interval === '1wk' ? '주별' : '월별'}
+                    </Text>
+                  </div>
+                  <div className="p-3 bg-ui-bg-subtle rounded-lg">
+                    <Text className="text-ui-fg-muted text-xs">포트폴리오 종목</Text>
+                    <Text className="text-ui-fg-base font-medium">{portfolioData.portfolio?.length || 0}개 종목</Text>
+                  </div>
                 </div>
-                <div className="flex flex-col w-full gap-2 px-6">
-                  <Text className="text-ui-fg-subtle">시작일</Text>
-                  <Controller
-                    control={form.control}
-                    name="startDate"
-                    render={({ field: { ...field } }) => {
-                      return <Input type="date" {...field} />;
-                    }}
-                  />
-                  <Text className="text-ui-fg-subtle">종료일</Text>
-                  <Controller
-                    control={form.control}
-                    name="endDate"
-                    render={({ field: { ...field } }) => {
-                      return <Input type="date" {...field} />;
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col w-full gap-2 px-6">
-                  <Text className="text-ui-fg-subtle">데이터 간격</Text>
-                  <ControlledSelectBox
-                    form={form}
-                    name="interval"
-                    options={[
-                      { label: '일별', value: '1d' },
-                      { label: '주별', value: '1wk' },
-                      { label: '월별', value: '1mo' },
-                    ]}
-                  />
-                </div>
+
+                {portfolioData.portfolio && portfolioData.portfolio.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Text className="text-ui-fg-muted text-sm">포트폴리오 구성</Text>
+                      <Text className="text-ui-fg-muted text-xs">
+                        총 투자금액: $
+                        {portfolioData.portfolio.reduce((total, item) => total + item.amount, 0).toLocaleString()}
+                      </Text>
+                    </div>
+                    <div className="grid gap-3">
+                      {portfolioData.portfolio.map((item, index) => {
+                        const totalAmount = portfolioData.portfolio.reduce((sum, p) => sum + p.amount, 0);
+                        const percentage = totalAmount > 0 ? ((item.amount / totalAmount) * 100).toFixed(1) : '0';
+
+                        return (
+                          <div key={index} className="p-3 border border-ui-border-base rounded-lg bg-ui-bg-base">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Text className="text-ui-fg-base font-semibold">{item.symbol}</Text>
+                                <span
+                                  className={`px-2 py-0.5 text-xs rounded-full ${
+                                    item.type === 'STOCK' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                                  }`}
+                                >
+                                  {item.type === 'STOCK' ? '일반주' : '배당주'}
+                                </span>
+                              </div>
+                              <Text className="text-ui-fg-base font-medium">{percentage}%</Text>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <Text className="text-ui-fg-muted">투자금액</Text>
+                                <Text className="text-ui-fg-base font-medium">${item.amount.toLocaleString()}</Text>
+                              </div>
+                              <div className="col-span-2">
+                                <Text className="text-ui-fg-muted">투자전략</Text>
+                                <Text className="text-ui-fg-base font-medium">
+                                  {item.strategy === 'HOLD'
+                                    ? '💰 보유'
+                                    : item.strategy === 'REINVESTMENT_STOCK'
+                                      ? '📈 일반주에 재투자'
+                                      : '📈 배당주에 재투자'}
+                                </Text>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center justify-end gap-3 px-6 py-4">
-                <Button type="button" size="small" variant="secondary" onClick={handleReset}>
-                  취소
-                </Button>
-                <Button size="small" variant="primary">
-                  테스트 시작
+            ) : (
+              <div className="text-center py-8">
+                <Text className="text-ui-fg-muted">백테스팅을 시작하려면 포트폴리오를 설정해주세요.</Text>
+                <Button type="button" className="mt-4" onClick={handleNewPortfolio}>
+                  포트폴리오 설정하기
                 </Button>
               </div>
-            </>
-          )}
-        </Container>
-      </form>
-    </FormProvider>
+            )}
+          </div>
+        )}
+      </Container>
+
+      <PortfolioForm
+        isOpen={isPortfolioFormOpen}
+        onClose={() => setIsPortfolioFormOpen(false)}
+        onSubmit={handlePortfolioSubmit}
+        initialData={portfolioData || undefined}
+        isLoading={isBacktesting}
+      />
+    </>
   );
 };
 

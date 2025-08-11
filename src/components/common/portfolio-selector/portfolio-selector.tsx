@@ -25,7 +25,7 @@ export const PortfolioSelector = ({ value, onChange }: IPortfolioSelectorProps) 
     const newItem: IPortfolioItem = {
       symbol: '',
       type: 'STOCK' as PortfolioType,
-      quantity: 0,
+      amount: 0,
       strategy: undefined,
     };
 
@@ -42,8 +42,8 @@ export const PortfolioSelector = ({ value, onChange }: IPortfolioSelectorProps) 
     onChange(updatedValue);
   };
 
-  const handleQuantityChange = (index: number, quantity: number) => {
-    const updatedValue = value.map((item, i) => (i === index ? { ...item, quantity } : item));
+  const handleAmountChange = (index: number, amount: number) => {
+    const updatedValue = value.map((item, i) => (i === index ? { ...item, amount } : item));
     onChange(updatedValue);
   };
 
@@ -74,8 +74,8 @@ export const PortfolioSelector = ({ value, onChange }: IPortfolioSelectorProps) 
       errors.push('종목 심볼을 입력해주세요');
     }
 
-    if (portfolio.quantity <= 0) {
-      errors.push('수량은 1개 이상이어야 합니다');
+    if (portfolio.amount <= 0) {
+      errors.push('투자 금액은 $1 이상이어야 합니다');
     }
 
     if (!portfolio.strategy) {
@@ -129,16 +129,16 @@ export const PortfolioSelector = ({ value, onChange }: IPortfolioSelectorProps) 
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Text className="text-ui-fg-subtle">수량</Text>
+                  <Text className="text-ui-fg-subtle">투자 금액</Text>
                   <Input
                     type="number"
                     min="0"
                     step="1"
                     placeholder="0"
-                    value={portfolio.quantity.toString()}
+                    value={portfolio.amount.toString()}
                     onChange={(e) => {
-                      const quantity = parseInt(e.target.value) || 0;
-                      handleQuantityChange(index, quantity);
+                      const amount = parseInt(e.target.value) || 0;
+                      handleAmountChange(index, amount);
                     }}
                   />
                 </div>

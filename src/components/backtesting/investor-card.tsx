@@ -50,7 +50,7 @@ const InvestorCard = ({ result }: IInvestorCardProps) => {
               {result.investor.name}
             </Heading>
             <Text size="large" weight="plus" className="text-ui-fg-subtle">
-              초기 자본: {formatCurrency(result.investor.initialCapital)}
+              초기 자본: {formatCurrency(result.investor.initialCapital || 0)}
             </Text>
           </div>
 
