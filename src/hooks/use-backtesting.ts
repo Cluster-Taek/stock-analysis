@@ -8,11 +8,9 @@ const useBacktesting = (params: IBacktestingParams) => {
   const backtesting = useCallback(async (params: IBacktestingParams) => {
     try {
       const result: IBacktestingResult = {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        interval: params.interval,
         result: [],
       };
+      console.log(params);
       // TODO: 백테스팅 로직 구현
       await new Promise((resolve) => setTimeout(resolve, 1000));
       return result;

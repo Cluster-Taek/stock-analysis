@@ -1,3 +1,5 @@
+import { ISODateString } from './common';
+
 export interface IPortfolioItem {
   symbol: string;
   type: PortfolioType;
@@ -20,14 +22,14 @@ export const getPortfolioStrategyLabel = (strategy: PortfolioStrategy) => {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface IBacktestingParams extends Record<string, any> {
-  initialCapital?: number; // 포트폴리오 기반 자동 계산으로 변경
   portfolio: IPortfolioItem[];
-  startDate: string;
-  endDate: string;
+  startDate: ISODateString;
+  endDate: ISODateString;
   interval: '1d' | '1wk' | '1mo';
 }
 
 export interface IBacktestingSnapshot {
+  date: ISODateString;
   capital: number;
   profit: number;
   profitRate: number; // 수익률
@@ -38,8 +40,5 @@ export interface IBacktestingSnapshot {
 }
 
 export interface IBacktestingResult {
-  startDate: string;
-  endDate: string;
-  interval: '1d' | '1wk' | '1mo';
   result: IBacktestingSnapshot[];
 }

@@ -55,13 +55,9 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
       return;
     }
 
-    // 포트폴리오 총 금액으로 초기 자본 자동 계산
-    const initialCapital = portfolioItems.reduce((total, item) => total + item.amount, 0);
-
     const submitData = {
       ...value,
       portfolio: portfolioItems,
-      initialCapital,
     };
 
     onSubmit(submitData);

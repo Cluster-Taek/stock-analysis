@@ -75,11 +75,7 @@ const BacktestingHeader = () => {
                     <Text className="text-ui-fg-muted text-xs">초기 자본금</Text>
                     <Text className="text-ui-fg-base font-medium">
                       $
-                      {(
-                        portfolioData.initialCapital ||
-                        portfolioData.portfolio?.reduce((total, item) => total + item.amount, 0) ||
-                        0
-                      ).toLocaleString()}
+                      {(portfolioData.portfolio?.reduce((total, item) => total + item.amount, 0) || 0).toLocaleString()}
                     </Text>
                   </div>
                   <div className="p-3 bg-ui-bg-subtle rounded-lg">
