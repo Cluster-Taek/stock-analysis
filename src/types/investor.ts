@@ -10,7 +10,7 @@ export interface IPortfolioItem {
   type: PortfolioType;
   amount: number; // 수량에서 금액으로 변경
   strategy?: PortfolioStrategy;
-  subPortfolio?: IPortfolioItem[];
+  reinvestmentTarget?: string; // REINVESTMENT 전략일 때 배당금을 재투자할 종목 심볼
 }
 
 export type PortfolioType = 'STOCK' | 'DIVIDEND';

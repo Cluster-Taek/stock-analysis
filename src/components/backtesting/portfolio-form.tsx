@@ -79,6 +79,7 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
       type: 'STOCK',
       amount: 0,
       strategy: 'HOLD',
+      reinvestmentTarget: '',
     };
     setPortfolioItems([...portfolioItems, newItem]);
   };
@@ -96,6 +97,11 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
         updatedItem.type = 'STOCK';
         updatedItem.strategy = 'HOLD';
       }
+    }
+
+    // 전략이 HOLD로 변경된 경우 재투자 대상 초기화
+    if (updatedItem.strategy === 'HOLD') {
+      updatedItem.reinvestmentTarget = '';
     }
 
     newItems[index] = { ...newItems[index], ...updatedItem };
@@ -279,6 +285,22 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                           </MultiSelect.Content>
                         </MultiSelect>
                       </div>
+
+                      {/* 재투자 대상 종목 (REINVESTMENT 전략일 때만 표시) */}
+                      {item.strategy === 'REINVESTMENT' && (
+                        <div className="flex flex-col space-y-1">
+                          <Label size="small" weight="plus">
+                            배당금 재투자 대상 종목
+                          </Label>
+                          <SymbolSearchInput
+                            value={item.reinvestmentTarget || ''}
+                            onChange={(symbol) => updatePortfolioItem(index, { reinvestmentTarget: symbol })}
+                          />
+                          <div className="text-xs text-ui-fg-muted">
+                            배당금을 받은 종목과 동일한 종목에 재투자하려면 빈 값으로 두세요
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {portfolioItems.length === 0 && (

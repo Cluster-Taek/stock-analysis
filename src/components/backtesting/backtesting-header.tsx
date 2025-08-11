@@ -138,7 +138,7 @@ const BacktestingHeader = () => {
                               <div className="col-span-2">
                                 <Text className="text-ui-fg-muted">투자전략</Text>
                                 <Text className="text-ui-fg-base font-medium">
-                                  {item.strategy === 'HOLD' ? '💰 보유' : '📈 재투자'}
+                                  {item.strategy === 'HOLD' ? '💰 보유' : `📈 재투자 (${item.reinvestmentTarget})`}
                                 </Text>
                               </div>
                             </div>
