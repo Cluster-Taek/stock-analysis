@@ -40,8 +40,8 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
     defaultValues: {
       name: '',
       portfolio: [],
-      startDate: '',
-      endDate: '',
+      startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
       interval: '1d',
     },
   });
@@ -134,7 +134,7 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
             </Drawer.Header>
 
             <Drawer.Body className="overflow-auto">
-              <div className="mx-auto flex w-full max-w-[720px] flex-col gap-y-4 px-2 py-4">
+              <div className="mx-auto flex w-full max-w-[720px] flex-col gap-y-6 px-2 py-4">
                 {/* 포트폴리오 이름 */}
                 <div className="flex w-full gap-4">
                   <ControlledInput<IPortfolioFormValue>
