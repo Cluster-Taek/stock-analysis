@@ -19,10 +19,10 @@ export const getPortfolioTypeLabel = (type: PortfolioType) => {
   return type === 'STOCK' ? '일반주' : '배당주';
 };
 
-export type PortfolioStrategy = 'HOLD' | 'REINVESTMENT_STOCK' | 'REINVESTMENT_DIVIDEND';
-export const PORTFOLIO_STATEGYS = ['HOLD', 'REINVESTMENT_STOCK', 'REINVESTMENT_DIVIDEND'];
+export type PortfolioStrategy = 'HOLD' | 'REINVESTMENT';
+export const PORTFOLIO_STATEGYS = ['HOLD', 'REINVESTMENT'];
 export const getPortfolioStrategyLabel = (strategy: PortfolioStrategy) => {
-  return strategy === 'HOLD' ? '보유' : strategy === 'REINVESTMENT_STOCK' ? '일반주에 재투자' : '배당주에 재투자';
+  return strategy === 'HOLD' ? '보유' : '재투자';
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
