@@ -8,7 +8,6 @@ const useBacktesting = (params: IBacktestingParams) => {
   const backtesting = useCallback(async (params: IBacktestingParams) => {
     try {
       const result: IBacktestingResult = {
-        investor: params.investor,
         startDate: params.startDate,
         endDate: params.endDate,
         interval: params.interval,

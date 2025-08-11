@@ -1,10 +1,3 @@
-export interface IInvestor {
-  id: string;
-  name: string;
-  initialCapital?: number; // 포트폴리오 기반 자동 계산으로 변경
-  portfolio: IPortfolioItem[];
-}
-
 export interface IPortfolioItem {
   symbol: string;
   type: PortfolioType;
@@ -45,7 +38,6 @@ export interface IBacktestingSnapshot {
 }
 
 export interface IBacktestingResult {
-  investor: IInvestor;
   startDate: string;
   endDate: string;
   interval: '1d' | '1wk' | '1mo';
