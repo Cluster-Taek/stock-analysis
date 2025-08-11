@@ -105,13 +105,13 @@ const BacktestingHeader = () => {
                         {portfolioData.portfolio.reduce((total, item) => total + item.amount, 0).toLocaleString()}
                       </Text>
                     </div>
-                    <div className="grid gap-3">
+                    <div className="flex flex-wrap gap-3">
                       {portfolioData.portfolio.map((item, index) => {
-                        const totalAmount = portfolioData.portfolio.reduce((sum, p) => sum + p.amount, 0);
-                        const percentage = totalAmount > 0 ? ((item.amount / totalAmount) * 100).toFixed(1) : '0';
-
                         return (
-                          <div key={index} className="p-3 border border-ui-border-base rounded-lg bg-ui-bg-base">
+                          <div
+                            key={index}
+                            className="p-3 border border-ui-border-base rounded-lg bg-ui-bg-base aspect-square"
+                          >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <Text className="text-ui-fg-base font-semibold">{item.symbol}</Text>
@@ -123,7 +123,6 @@ const BacktestingHeader = () => {
                                   {item.type === 'STOCK' ? '일반주' : '배당주'}
                                 </span>
                               </div>
-                              <Text className="text-ui-fg-base font-medium">{percentage}%</Text>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-xs">
