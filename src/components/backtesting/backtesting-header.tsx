@@ -1,15 +1,20 @@
 'use client';
 
+import { PortfolioPieChart } from '../charts';
 import { PortfolioForm } from './portfolio-form';
+import useLocalStorage from '@/hooks/use-local-storage';
 import { IBacktestingParams } from '@/types/investor';
-import { ChevronDown, Plus } from '@medusajs/icons';
+import { ChevronDown } from '@medusajs/icons';
 import { Button, Container, Heading, Text } from '@medusajs/ui';
 import { useState } from 'react';
 
 const BacktestingHeader = () => {
   const [open, setOpen] = useState(true);
   const [isPortfolioFormOpen, setIsPortfolioFormOpen] = useState(false);
-  const [portfolioData, setPortfolioData] = useState<IBacktestingParams | null>(null);
+  const { value: portfolioData, setValue: setPortfolioData } = useLocalStorage<IBacktestingParams | null>(
+    'backtesting-params',
+    null
+  );
   const [isBacktesting, setIsBacktesting] = useState(false);
 
   const handlePortfolioSubmit = async (data: IBacktestingParams) => {
@@ -30,12 +35,12 @@ const BacktestingHeader = () => {
     }
   };
 
-  const handleNewPortfolio = () => {
+  const handleEditPortfolio = () => {
     setIsPortfolioFormOpen(true);
   };
 
-  const handleEditPortfolio = () => {
-    setIsPortfolioFormOpen(true);
+  const handleDeletePortfolio = () => {
+    setPortfolioData(null);
   };
 
   return (
@@ -46,9 +51,6 @@ const BacktestingHeader = () => {
             백테스팅
           </Heading>
           <div className="flex items-center gap-2">
-            <Button type="button" size="small" variant="secondary" onClick={handleNewPortfolio}>
-              <Plus className="w-4 h-4" />새 포트폴리오
-            </Button>
             <Button type="button" size="small" variant="transparent" onClick={() => setOpen(!open)}>
               {open ? '닫기' : '열기'}
               <ChevronDown
@@ -65,9 +67,14 @@ const BacktestingHeader = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Text className="text-ui-fg-base font-medium">현재 포트폴리오: {portfolioData.name}</Text>
-                  <Button type="button" size="small" variant="secondary" onClick={handleEditPortfolio}>
-                    수정
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button type="button" size="small" variant="secondary" onClick={handleEditPortfolio}>
+                      수정
+                    </Button>
+                    <Button type="button" size="small" variant="secondary" onClick={handleDeletePortfolio}>
+                      삭제
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -141,13 +148,14 @@ const BacktestingHeader = () => {
                         );
                       })}
                     </div>
+                    <PortfolioPieChart portfolio={portfolioData.portfolio} />
                   </div>
                 )}
               </div>
             ) : (
               <div className="text-center py-8">
                 <Text className="text-ui-fg-muted">백테스팅을 시작하려면 포트폴리오를 설정해주세요.</Text>
-                <Button type="button" className="mt-4" onClick={handleNewPortfolio}>
+                <Button type="button" className="mt-4" onClick={handleEditPortfolio}>
                   포트폴리오 설정하기
                 </Button>
               </div>
