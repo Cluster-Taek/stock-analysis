@@ -2,7 +2,7 @@
 
 import { PortfolioPieChart } from '../charts';
 import { PortfolioForm } from './portfolio-form';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { useBacktesting } from '@/contexts/backtesting-provider';
 import { IBacktestingParams } from '@/types/investor';
 import { ChevronDown } from '@medusajs/icons';
 import { Button, Container, Heading, Text } from '@medusajs/ui';
@@ -11,28 +11,11 @@ import { useState } from 'react';
 const BacktestingHeader = () => {
   const [open, setOpen] = useState(true);
   const [isPortfolioFormOpen, setIsPortfolioFormOpen] = useState(false);
-  const { value: portfolioData, setValue: setPortfolioData } = useLocalStorage<IBacktestingParams | null>(
-    'backtesting-params',
-    null
-  );
-  const [isBacktesting, setIsBacktesting] = useState(false);
+  const { setPortfolioData, portfolioData, isLoading: isBacktestingLoading } = useBacktesting();
 
   const handlePortfolioSubmit = async (data: IBacktestingParams) => {
-    setIsBacktesting(true);
-
-    try {
-      // 백테스팅 로직 실행
-      console.log('백테스팅 데이터:', data);
-      setPortfolioData(data);
-      setIsPortfolioFormOpen(false);
-
-      // TODO: 실제 백테스팅 API 호출
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // 시뮬레이션
-    } catch (error) {
-      console.error('백테스팅 실행 중 오류:', error);
-    } finally {
-      setIsBacktesting(false);
-    }
+    setPortfolioData(data);
+    setIsPortfolioFormOpen(false);
   };
 
   const handleEditPortfolio = () => {
@@ -169,7 +152,7 @@ const BacktestingHeader = () => {
         onClose={() => setIsPortfolioFormOpen(false)}
         onSubmit={handlePortfolioSubmit}
         initialData={portfolioData || undefined}
-        isLoading={isBacktesting}
+        isLoading={isBacktestingLoading}
       />
     </>
   );
