@@ -24,7 +24,7 @@ const BacktestingResult = () => {
           백테스팅 시작
         </Button>
       </div>
-      <BacktestingChart data={backtestingResult?.result || []} />
+      <BacktestingChart data={backtestingResult?.result || []} loading={isLoading} />
     </div>
   );
 };

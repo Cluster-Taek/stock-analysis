@@ -69,6 +69,12 @@ export function BacktestingChart({
                   context.parsed.y
                 );
               }
+
+              // Add profitRate
+              const snapshot = sortedData[context.dataIndex];
+              if (snapshot && snapshot.profitRate !== undefined) {
+                label += ` (수익률: ${(snapshot.profitRate * 100).toFixed(2)}%)`;
+              }
               return label;
             },
           },
@@ -85,12 +91,12 @@ export function BacktestingChart({
           grid: { color: colors.grid },
           ticks: {
             color: colors.text,
-            callback: (value: string | number) => `$${Number(value).toLocaleString()}`,
+            callback: (value: string | number) => `${Number(value).toLocaleString()}`,
           },
         },
       },
     }),
-    [colors]
+    [colors, sortedData] // Add sortedData to dependency array
   );
 
   if (loading) {

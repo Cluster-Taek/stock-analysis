@@ -311,7 +311,7 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                 취소
               </Button>
               <Button type="submit" variant="primary" size="small" isLoading={isLoading}>
-                백테스팅 시작
+                저장
               </Button>
             </Drawer.Footer>
           </form>

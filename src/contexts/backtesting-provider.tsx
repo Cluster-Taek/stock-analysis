@@ -4,7 +4,7 @@ import useLocalStorage from '@/hooks/use-local-storage';
 import { IBacktestingParams, IBacktestingResult, IBacktestingSnapshot } from '@/types/investor';
 import { ApiResponse, HistoricalDataResponse } from '@/types/yahoo-finance';
 import { isYieldmaxSymbol } from '@/utils/yieldmax-utils';
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 // --- Context Definition (기존 코드와 동일) ---
 interface IBacktestingContextType {
@@ -123,7 +123,9 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
         for (const date of sortedDates) {
           const dailyData = timelineData.get(date);
           if (dailyData) {
-            const allSymbolsHaveData = params.portfolio.every(item => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.adjclose != null);
+            const allSymbolsHaveData = params.portfolio.every(
+              (item) => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.adjclose != null
+            );
             if (allSymbolsHaveData) {
               actualStartDate = date;
               break;
@@ -141,7 +143,7 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
         let cash = 0;
 
         // Initialize portfolioState for all unique symbols with 0 shares
-        uniqueSymbols.forEach(symbol => {
+        uniqueSymbols.forEach((symbol) => {
           portfolioState[symbol] = { shares: 0 };
         });
 
@@ -234,6 +236,12 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
     },
     [setIsLoading, setBacktestingResult]
   );
+
+  useEffect(() => {
+    if (portfolioData) {
+      setBacktestingResult(null);
+    }
+  }, [portfolioData]);
 
   return (
     <BacktestingContext.Provider
