@@ -1,5 +1,6 @@
 'use client';
 
+import { BacktestingChart } from '../charts/backtesting-chart';
 import { useBacktesting } from '@/contexts/backtesting-provider';
 import { Button } from '@medusajs/ui';
 
@@ -23,8 +24,7 @@ const BacktestingResult = () => {
           백테스팅 시작
         </Button>
       </div>
-      <div>{JSON.stringify(portfolioData)}</div>
-      <div>{JSON.stringify(backtestingResult)}</div>
+      <BacktestingChart data={backtestingResult?.result || []} />
     </div>
   );
 };
