@@ -80,8 +80,11 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
         const fetchedResults = await Promise.all(dataPromises);
         const fetchedDividends = await Promise.all(dividendsPromises);
 
+        console.log(fetchedResults);
+        console.log(fetchedDividends);
+
         // 2. 조회하기 쉬운 형태로 데이터 가공: Map<날짜, Map<종목, {종가, 배당}>>
-        const timelineData = new Map<string, Map<string, { adjclose: number; dividend: number }>>();
+        const timelineData = new Map<string, Map<string, { close: number; dividend: number }>>();
         const dividendMapBySymbolAndDate = new Map<string, Map<string, number>>();
 
         // Populate dividendMapBySymbolAndDate
@@ -96,19 +99,19 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
 
         for (const { symbol, data } of fetchedResults) {
           const timestamps = data.map((item) => item.date);
-          const adjcloses = data.map((item) => item.adjustedClose);
+          const closes = data.map((item) => item.close);
 
           for (let i = 0; i < timestamps.length; i++) {
             const ts = timestamps[i];
-            const adjclose = adjcloses[i];
-            if (ts && adjclose != null) {
+            const close = closes[i];
+            if (ts && close != null) {
               const dateStr = new Date(ts).toISOString().split('T')[0];
               if (!timelineData.has(dateStr)) timelineData.set(dateStr, new Map());
 
               const dividendAmount = dividendMapBySymbolAndDate.get(symbol)?.get(dateStr) || 0;
 
               timelineData.get(dateStr)!.set(symbol, {
-                adjclose: adjclose,
+                close: close,
                 dividend: dividendAmount,
               });
             }
@@ -124,7 +127,7 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
           const dailyData = timelineData.get(date);
           if (dailyData) {
             const allSymbolsHaveData = params.portfolio.every(
-              (item) => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.adjclose != null
+              (item) => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.close != null
             );
             if (allSymbolsHaveData) {
               actualStartDate = date;
@@ -150,11 +153,11 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
         const initialPrices = timelineData.get(actualStartDate)!;
         for (const item of params.portfolio) {
           const priceData = initialPrices.get(item.symbol);
-          if (!priceData?.adjclose) {
+          if (!priceData?.close) {
             throw new Error(`${item.symbol}의 시작일(${actualStartDate}) 가격을 찾을 수 없습니다.`);
           }
           portfolioState[item.symbol] = {
-            shares: (portfolioState[item.symbol]?.shares || 0) + item.amount / priceData.adjclose,
+            shares: (portfolioState[item.symbol]?.shares || 0) + item.amount / priceData.close,
           };
         }
 
@@ -166,7 +169,7 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
         const snapshots: IBacktestingSnapshot[] = [];
         const lastKnownPrices: Record<string, number> = {};
         uniqueSymbols.forEach((s) => {
-          lastKnownPrices[s] = timelineData.get(actualStartDate)?.get(s)?.adjclose || 0;
+          lastKnownPrices[s] = timelineData.get(actualStartDate)?.get(s)?.close || 0;
         });
 
         for (const date of simulationDates) {
@@ -175,7 +178,7 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
 
           // 현재 보유 주식의 시장 가치 계산
           for (const symbol of uniqueSymbols) {
-            const price = dailyData.get(symbol)?.adjclose || lastKnownPrices[symbol];
+            const price = dailyData.get(symbol)?.close || lastKnownPrices[symbol];
             lastKnownPrices[symbol] = price; // 마지막 가격 업데이트
             marketValue += (portfolioState[symbol]?.shares || 0) * price;
           }
@@ -187,7 +190,7 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
               const dividendReceived = (portfolioState[item.symbol]?.shares || 0) * priceData.dividend;
               if (item.strategy === 'REINVESTMENT' && item.reinvestmentTarget) {
                 const targetSymbol = item.reinvestmentTarget;
-                const targetPrice = dailyData.get(targetSymbol)?.adjclose || lastKnownPrices[targetSymbol];
+                const targetPrice = dailyData.get(targetSymbol)?.close || lastKnownPrices[targetSymbol];
                 if (targetPrice > 0) {
                   const newShares = dividendReceived / targetPrice;
                   portfolioState[targetSymbol].shares += newShares;
