@@ -2,6 +2,8 @@
 
 import { defaultChartOptions } from '@/lib/chart-config';
 import { Skeleton } from '@/medusa/components/skeleton';
+import { ChartBar, ExclamationCircle } from '@medusajs/icons';
+import { Text } from '@medusajs/ui';
 // ✨ 1. Chart.js에서 Plugin 타입을 가져옵니다.
 import { ChartOptions, Plugin } from 'chart.js';
 import React, { useId, useMemo } from 'react';
@@ -62,22 +64,19 @@ export function BaseChart({
   if (error) {
     return (
       <div
-        className={`flex items-center justify-center w-full bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+        className={`flex items-center justify-center w-full bg-ui-bg-subtle rounded-lg border border-ui-border-base ${className}`}
         style={{ height, width }}
       >
-        <div className="text-center">
-          <div className="text-red-500 mb-2">
-            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+        <div className="flex flex-col items-center gap-y-3">
+          <ExclamationCircle className="w-12 h-12 text-ui-fg-error" />
+          <div className="flex flex-col items-center gap-y-1">
+            <Text size="large" leading="compact" weight="plus" className="text-ui-fg-base">
+              차트 로딩 실패
+            </Text>
+            <Text size="small" className="text-ui-fg-muted">
+              {error}
+            </Text>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">차트 로딩 실패</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{error}</p>
         </div>
       </div>
     );
@@ -86,22 +85,19 @@ export function BaseChart({
   if (!data.datasets.length || data.datasets.every((dataset: any) => !dataset.data.length)) {
     return (
       <div
-        className={`flex items-center justify-center w-full bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+        className={`flex items-center justify-center w-full bg-ui-bg-subtle rounded-lg border border-ui-border-base ${className}`}
         style={{ height, width }}
       >
-        <div className="text-center">
-          <div className="text-gray-400 mb-2">
-            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
+        <div className="flex flex-col items-center gap-y-3">
+          <div className="flex flex-row items-center gap-x-2">
+            <ChartBar />
+            <Text size="large" leading="compact" weight="plus" className="text-ui-fg-base text-center">
+              데이터가 없습니다
+            </Text>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">데이터가 없습니다</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">선택한 기간에 표시할 차트 데이터가 없습니다.</p>
+          <Text size="small" className="text-ui-fg-muted">
+            선택한 기간에 표시할 차트 데이터가 없습니다.
+          </Text>
         </div>
       </div>
     );

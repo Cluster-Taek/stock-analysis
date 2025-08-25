@@ -12,7 +12,7 @@ const BacktestingResult = () => {
   }
 
   return (
-    <div className="block">
+    <div className="flex flex-col gap-y-4">
       <div>
         <Button
           type="button"
