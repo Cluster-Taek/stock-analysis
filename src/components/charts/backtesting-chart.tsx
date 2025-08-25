@@ -139,7 +139,11 @@ export function BacktestingChart({
                 if (holdingEntries.length > 0) {
                   labels.push('보유 주식:');
                   holdingEntries.forEach(([symbol, shares]) => {
-                    labels.push(`  ${symbol}: ${shares.toFixed(4)}주`);
+                    const currentPrice = snapshot.currentPrices?.[symbol];
+                    const priceInfo = currentPrice 
+                      ? ` (현재가: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(currentPrice)})`
+                      : '';
+                    labels.push(`  ${symbol}: ${shares.toFixed(4)}주${priceInfo}`);
                   });
                 }
               }

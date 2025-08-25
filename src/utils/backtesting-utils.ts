@@ -241,8 +241,13 @@ export function runBacktestingSimulation(
     const profitRate = initialCapital > 0 ? profit / initialCapital : 0;
 
     const currentHoldings: Record<string, number> = {};
+    const currentPrices: Record<string, number> = {};
     Object.entries(portfolioState).forEach(([symbol, state]) => {
       currentHoldings[symbol] = state.shares;
+      const price = dailyData.get(symbol)?.close || lastKnownPrices[symbol];
+      if (price) {
+        currentPrices[symbol] = price;
+      }
     });
 
     snapshots.push({
@@ -256,6 +261,7 @@ export function runBacktestingSimulation(
       profitRatePerYear: 0,
       cash,
       holdings: currentHoldings,
+      currentPrices,
     });
   }
 
