@@ -50,3 +50,23 @@ export interface IPendingDividend {
   reinvestmentTarget?: string;
   strategy: PortfolioStrategy;
 }
+
+export interface DividendData {
+  date: number;
+  amount: number;
+  exDate?: string;
+  payableDate?: string;
+}
+
+export interface HistoricalData {
+  symbol: string;
+  data: Array<{
+    date: string;
+    close: number;
+  }>;
+}
+
+export interface DividendResponse {
+  symbol: string;
+  data: DividendData[];
+}

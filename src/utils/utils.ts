@@ -45,3 +45,7 @@ export const parseValidDate = (dateInput: string | number | undefined, fallback:
     return fallback;
   }
 };
+
+export const toDateString = (timestamp: number | string | Date): string => {
+  return new Date(timestamp).toISOString().split('T')[0];
+};
