@@ -1,8 +1,9 @@
 'use client';
 
 import useLocalStorage from '@/hooks/use-local-storage';
-import { IBacktestingParams, IBacktestingResult, IBacktestingSnapshot } from '@/types/investor';
+import { IBacktestingParams, IBacktestingResult, IBacktestingSnapshot, IPendingDividend } from '@/types/investor';
 import { ApiResponse, HistoricalDataResponse } from '@/types/yahoo-finance';
+import { parseValidDate } from '@/utils/utils';
 import { isYieldmaxSymbol } from '@/utils/yieldmax-utils';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
@@ -83,18 +84,31 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
         console.log(fetchedResults);
         console.log(fetchedDividends);
 
-        // 2. 조회하기 쉬운 형태로 데이터 가공: Map<날짜, Map<종목, {종가, 배당}>>
+        // 2. 조회하기 쉬운 형태로 데이터 가공: Map<날짜, Map<종목, {종가, 배당락일 배당}>>
         const timelineData = new Map<string, Map<string, { close: number; dividend: number }>>();
         const dividendMapBySymbolAndDate = new Map<string, Map<string, number>>();
+        const payableDividendMapBySymbolAndDate = new Map<string, Map<string, number>>();
 
-        // Populate dividendMapBySymbolAndDate
+        // Populate dividendMapBySymbolAndDate (배당락일 기준 - 배당 권리 확정용)
         for (const { symbol, data: dividends } of fetchedDividends) {
-          const dateMap = new Map<string, number>();
-          dividends.forEach((div: { date: number; amount: number }) => {
-            const dateStr = new Date(div.date).toISOString().split('T')[0];
-            dateMap.set(dateStr, div.amount);
+          const exDateMap = new Map<string, number>();
+          const payableDateMap = new Map<string, number>();
+          
+          dividends.forEach((div: { date: number; amount: number; exDate?: string; payableDate?: string }) => {
+            // 기본 날짜 (div.date 기준)
+            const baseDateStr = new Date(div.date).toISOString().split('T')[0];
+            
+            // 배당락일 매핑 (배당 권리 확정용)
+            const exDateStr = parseValidDate(div.exDate, baseDateStr);
+            exDateMap.set(exDateStr, div.amount);
+            
+            // 실제 지급일 매핑 (재투자 실행용)
+            const payableDateStr = parseValidDate(div.payableDate, exDateStr);
+            payableDateMap.set(payableDateStr, div.amount);
           });
-          dividendMapBySymbolAndDate.set(symbol, dateMap);
+          
+          dividendMapBySymbolAndDate.set(symbol, exDateMap);
+          payableDividendMapBySymbolAndDate.set(symbol, payableDateMap);
         }
 
         for (const { symbol, data } of fetchedResults) {
@@ -168,6 +182,8 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
         // 4. 시뮬레이션 실행
         const snapshots: IBacktestingSnapshot[] = [];
         const lastKnownPrices: Record<string, number> = {};
+        const pendingDividends: IPendingDividend[] = []; // 배당금 대기 큐
+        
         uniqueSymbols.forEach((s) => {
           lastKnownPrices[s] = timelineData.get(actualStartDate)?.get(s)?.close || 0;
         });
@@ -183,25 +199,67 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
             marketValue += (portfolioState[symbol]?.shares || 0) * price;
           }
 
-          // 배당금 처리 및 재투자
+          // 1. 배당락일 처리 - 배당 권리 확정 (pendingDividends에 추가)
           for (const item of params.portfolio) {
             const priceData = dailyData.get(item.symbol);
             if (priceData && priceData.dividend > 0) {
               const dividendReceived = (portfolioState[item.symbol]?.shares || 0) * priceData.dividend;
-              if (item.strategy === 'REINVESTMENT' && item.reinvestmentTarget) {
-                const targetSymbol = item.reinvestmentTarget;
-                const targetPrice = dailyData.get(targetSymbol)?.close || lastKnownPrices[targetSymbol];
-                if (targetPrice > 0) {
-                  const newShares = dividendReceived / targetPrice;
-                  portfolioState[targetSymbol].shares += newShares;
+              
+              // payableDate 결정 (payableDate가 있으면 사용, 없으면 exDate 사용)
+              const payableDateMap = payableDividendMapBySymbolAndDate.get(item.symbol);
+              let payableDate = date; // fallback to ex-date
+              
+              // payableDate 찾기 - 현재 배당락일에 해당하는 배당금의 지급일을 찾음
+              if (payableDateMap) {
+                const entries = Array.from(payableDateMap.entries());
+                // 금액이 정확히 일치하는 지급일을 우선 찾기
+                const exactMatch = entries.find(([, amount]) => Math.abs(amount - priceData.dividend) < 0.001);
+                if (exactMatch && exactMatch[0] >= date) {
+                  payableDate = exactMatch[0];
                 } else {
-                  cash += dividendReceived; // 재투자 대상 가격 없으면 현금으로 보유
+                  // 정확한 매치가 없으면 현재 날짜 이후의 가장 가까운 지급일
+                  const futurePayments = entries.filter(([pDate]) => pDate >= date);
+                  if (futurePayments.length > 0) {
+                    // 날짜순 정렬 후 첫 번째 항목
+                    futurePayments.sort(([a], [b]) => a.localeCompare(b));
+                    payableDate = futurePayments[0][0];
+                  }
                 }
-              } else {
-                cash += dividendReceived; // HOLD 전략은 현금으로 보유
               }
+              
+              // 배당금을 대기 큐에 추가
+              pendingDividends.push({
+                symbol: item.symbol,
+                amount: dividendReceived,
+                payableDate,
+                reinvestmentTarget: item.reinvestmentTarget,
+                strategy: item.strategy || 'HOLD'
+              });
             }
           }
+
+          // 2. 배당금 지급일 처리 - 실제 지급 및 재투자
+          const dividendsToExecute = pendingDividends.filter(dividend => dividend.payableDate === date);
+          const remainingDividends = pendingDividends.filter(dividend => dividend.payableDate !== date);
+          
+          for (const dividend of dividendsToExecute) {
+            if (dividend.strategy === 'REINVESTMENT' && dividend.reinvestmentTarget) {
+              const targetSymbol = dividend.reinvestmentTarget;
+              const targetPrice = dailyData.get(targetSymbol)?.close || lastKnownPrices[targetSymbol];
+              if (targetPrice > 0) {
+                const newShares = dividend.amount / targetPrice;
+                portfolioState[targetSymbol].shares += newShares;
+              } else {
+                cash += dividend.amount; // 재투자 대상 가격 없으면 현금으로 보유
+              }
+            } else {
+              cash += dividend.amount; // HOLD 전략은 현금으로 보유
+            }
+          }
+          
+          // 실행된 배당금들을 대기 큐에서 제거
+          pendingDividends.length = 0;
+          pendingDividends.push(...remainingDividends);
 
           const capital = marketValue + cash;
           const profit = capital - initialCapital;

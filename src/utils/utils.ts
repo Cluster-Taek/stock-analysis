@@ -33,3 +33,15 @@ export const isEmpty = (value: unknown) => {
   }
   return false;
 };
+
+export const parseValidDate = (dateInput: string | number | undefined, fallback: string): string => {
+  if (!dateInput) return fallback;
+  
+  try {
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return fallback;
+    return date.toISOString().split('T')[0];
+  } catch {
+    return fallback;
+  }
+};

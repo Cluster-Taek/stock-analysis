@@ -42,3 +42,11 @@ export interface IBacktestingSnapshot {
 export interface IBacktestingResult {
   result: IBacktestingSnapshot[];
 }
+
+export interface IPendingDividend {
+  symbol: string;
+  amount: number;
+  payableDate: ISODateString;
+  reinvestmentTarget?: string;
+  strategy: PortfolioStrategy;
+}
