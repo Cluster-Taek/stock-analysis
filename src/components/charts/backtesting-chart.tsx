@@ -77,6 +77,31 @@ export function BacktestingChart({
               }
               return label;
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            afterLabel: function (context: any) {
+              const snapshot = sortedData[context.dataIndex];
+              if (!snapshot) return [];
+
+              const labels = [];
+              
+              // Add cash information
+              if (snapshot.cash !== undefined) {
+                labels.push(`현금: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(snapshot.cash)}`);
+              }
+
+              // Add holdings information
+              if (snapshot.holdings) {
+                const holdingEntries = Object.entries(snapshot.holdings).filter(([, shares]) => shares > 0);
+                if (holdingEntries.length > 0) {
+                  labels.push('보유 주식:');
+                  holdingEntries.forEach(([symbol, shares]) => {
+                    labels.push(`  ${symbol}: ${shares.toFixed(4)}주`);
+                  });
+                }
+              }
+
+              return labels;
+            },
           },
         },
       },

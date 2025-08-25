@@ -37,6 +37,8 @@ export interface IBacktestingSnapshot {
   profitRatePerMonth: number; // 월별 수익률
   profitRatePerWeek: number; // 주별 수익률
   profitRatePerDay: number; // 일별 수익률
+  cash: number; // 현금 잔고
+  holdings: Record<string, number>; // 종목별 보유 주식 수 (symbol -> shares)
 }
 
 export interface IBacktestingResult {
