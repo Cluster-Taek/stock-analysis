@@ -1,19 +1,14 @@
 'use client';
 
 import { BacktestingChart } from '../charts/backtesting-chart';
+import MultiSelect from '../common/multi-select';
 import { useBacktesting } from '@/contexts/backtesting-provider';
 import { IBacktestingConfig } from '@/types/investor';
-import { Button, Text, Input, Label, Container } from '@medusajs/ui';
+import { Button, Container, Input, Label, Text } from '@medusajs/ui';
 import { useState } from 'react';
 
 const BacktestingResult = () => {
-  const { 
-    portfolios, 
-    selectedPortfolios, 
-    backtestingResults, 
-    startBacktesting, 
-    isLoading 
-  } = useBacktesting();
+  const { portfolios, selectedPortfolios, backtestingResults, startBacktesting, isLoading } = useBacktesting();
 
   const [backtestingConfig, setBacktestingConfig] = useState<IBacktestingConfig>({
     startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -29,7 +24,7 @@ const BacktestingResult = () => {
   };
 
   const selectedPortfolioNames = Array.from(selectedPortfolios)
-    .map(id => portfolios.find(p => p.id === id)?.name)
+    .map((id) => portfolios.find((p) => p.id === id)?.name)
     .filter(Boolean);
 
   return (
@@ -46,12 +41,7 @@ const BacktestingResult = () => {
                   선택된 {selectedPortfolios.size}개 포트폴리오: {selectedPortfolioNames.join(', ')}
                 </Text>
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleStartBacktesting}
-                isLoading={isLoading}
-              >
+              <Button type="button" variant="secondary" onClick={handleStartBacktesting} isLoading={isLoading}>
                 백테스팅 시작
               </Button>
             </div>
@@ -65,7 +55,7 @@ const BacktestingResult = () => {
                   type="date"
                   size="small"
                   value={backtestingConfig.startDate}
-                  onChange={(e) => setBacktestingConfig(prev => ({ ...prev, startDate: e.target.value }))}
+                  onChange={(e) => setBacktestingConfig((prev) => ({ ...prev, startDate: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -76,22 +66,30 @@ const BacktestingResult = () => {
                   type="date"
                   size="small"
                   value={backtestingConfig.endDate}
-                  onChange={(e) => setBacktestingConfig(prev => ({ ...prev, endDate: e.target.value }))}
+                  onChange={(e) => setBacktestingConfig((prev) => ({ ...prev, endDate: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
                 <Label size="small" weight="plus">
                   데이터 간격
                 </Label>
-                <select
-                  className="flex h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted focus:outline-none focus:ring-2 focus:ring-ui-border-interactive focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50"
-                  value={backtestingConfig.interval}
-                  onChange={(e) => setBacktestingConfig(prev => ({ ...prev, interval: e.target.value as '1d' | '1wk' | '1mo' }))}
+                <MultiSelect
+                  value={'1d'}
+                  multiple={false}
+                  disabled
+                  onValueChange={(value) =>
+                    setBacktestingConfig((prev) => ({ ...prev, interval: value as '1d' | '1wk' | '1mo' }))
+                  }
                 >
-                  <option value="1d">일별</option>
-                  <option value="1wk">주별</option>
-                  <option value="1mo">월별</option>
-                </select>
+                  <MultiSelect.Trigger>
+                    <MultiSelect.Value placeholder="Select options..." />
+                  </MultiSelect.Trigger>
+                  <MultiSelect.Content>
+                    <MultiSelect.Item value="1d">일별</MultiSelect.Item>
+                    <MultiSelect.Item value="1wk">주별</MultiSelect.Item>
+                    <MultiSelect.Item value="1mo">월별</MultiSelect.Item>
+                  </MultiSelect.Content>
+                </MultiSelect>
               </div>
             </div>
           </div>
@@ -115,25 +113,20 @@ const BacktestingResult = () => {
             <div className="flex items-center gap-4 text-sm text-ui-fg-muted">
               {backtestingResults.map((result, index) => (
                 <div key={result.portfolioId} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: getPortfolioColor(index) }}
-                  />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getPortfolioColor(index) }} />
                   <span>{result.portfolioName}</span>
                 </div>
               ))}
             </div>
           </div>
-          
+
           <BacktestingChart data={backtestingResults} loading={isLoading} />
         </div>
       )}
 
       {selectedPortfolios.size > 0 && backtestingResults.length === 0 && !isLoading && (
         <div className="text-center py-8 border border-ui-border-base border-dashed rounded-lg">
-          <Text className="text-ui-fg-muted">
-            백테스팅 버튼을 클릭하여 선택된 포트폴리오들의 성과를 비교해보세요.
-          </Text>
+          <Text className="text-ui-fg-muted">백테스팅 버튼을 클릭하여 선택된 포트폴리오들의 성과를 비교해보세요.</Text>
         </div>
       )}
     </div>
@@ -144,7 +137,7 @@ const BacktestingResult = () => {
 function getPortfolioColor(index: number): string {
   const colors = [
     'rgb(59, 130, 246)', // blue
-    'rgb(91, 33, 182)', // purple  
+    'rgb(91, 33, 182)', // purple
     'rgb(249, 115, 22)', // orange
     'rgb(16, 185, 129)', // green
     'rgb(244, 63, 94)', // red

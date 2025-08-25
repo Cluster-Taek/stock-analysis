@@ -207,20 +207,28 @@ export function runBacktestingSimulation(
       marketValue += (portfolioState[symbol]?.shares || 0) * price;
     }
 
-    // Process dividend ex-dates
-    for (const item of params.portfolio) {
-      const priceData = dailyData.get(item.symbol);
-      if (priceData && priceData.dividend > 0) {
-        const dividendReceived = (portfolioState[item.symbol]?.shares || 0) * priceData.dividend;
-        const payableDate = findPayableDate(date, item.symbol, priceData.dividend, payableDividendMapBySymbolAndDate);
-        
-        pendingDividends.push({
-          symbol: item.symbol,
-          amount: dividendReceived,
-          payableDate,
-          reinvestmentTarget: item.reinvestmentTarget,
-          strategy: item.strategy || 'HOLD'
-        });
+    // Process dividend ex-dates for all held stocks
+    for (const symbol of uniqueSymbols) {
+      const shares = portfolioState[symbol]?.shares || 0;
+      if (shares > 0) {
+        const priceData = dailyData.get(symbol);
+        if (priceData && priceData.dividend > 0) {
+          const dividendReceived = shares * priceData.dividend;
+          const payableDate = findPayableDate(date, symbol, priceData.dividend, payableDividendMapBySymbolAndDate);
+          
+          // Find the original portfolio item or reinvestment target configuration
+          const originalItem = params.portfolio.find(item => item.symbol === symbol);
+          const reinvestmentTarget = originalItem?.reinvestmentTarget || symbol; // Default to same symbol for reinvestment targets
+          const strategy = originalItem?.strategy || 'REINVESTMENT'; // Default reinvestment for dividend stocks
+          
+          pendingDividends.push({
+            symbol: symbol,
+            amount: dividendReceived,
+            payableDate,
+            reinvestmentTarget: reinvestmentTarget,
+            strategy: strategy
+          });
+        }
       }
     }
 
