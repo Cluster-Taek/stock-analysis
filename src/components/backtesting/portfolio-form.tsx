@@ -1,6 +1,5 @@
 import MultiSelect from '../common/multi-select';
 import { ControlledInput } from '@/components/common/controlled-input';
-import { ControlledSelectBox } from '@/components/common/controlled-select-box';
 import { SymbolSearchInput } from '@/components/common/symbol-search-input';
 import { YIELDMAX_SYMBOLS } from '@/constants/yieldmax-constants';
 import { useAlert } from '@/contexts/alert-provider';
@@ -13,9 +12,6 @@ import { FormProvider, useForm } from 'react-hook-form';
 interface IPortfolioFormValue {
   name: string;
   portfolio: IPortfolioItem[];
-  startDate: string;
-  endDate: string;
-  interval: '1d' | '1wk' | '1mo';
 }
 
 interface IPortfolioFormProps {
@@ -40,9 +36,6 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
     defaultValues: {
       name: '',
       portfolio: [],
-      startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      interval: '1d',
     },
   });
 
@@ -117,14 +110,16 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
       if (initialData.portfolio) {
         setPortfolioItems(initialData.portfolio);
       }
+    } else {
+      // 새 포트폴리오 추가시 폼 초기화
+      form.reset({
+        name: '',
+        portfolio: [],
+      });
+      setPortfolioItems([]);
     }
   }, [initialData, form]);
 
-  const intervalOptions = [
-    { value: '1d', label: '일별' },
-    { value: '1wk', label: '주별' },
-    { value: '1mo', label: '월별' },
-  ];
 
   return (
     <Drawer open={isOpen} onOpenChange={handleOpenChange}>
@@ -166,41 +161,6 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                   </div>
                 )}
 
-                {/* 백테스팅 기간 */}
-                <div className="flex w-full gap-4">
-                  <ControlledInput<IPortfolioFormValue>
-                    form={form}
-                    label="시작일"
-                    name="startDate"
-                    type="date"
-                    rules={{ required: '시작일은 필수값입니다' }}
-                  />
-                  <ControlledInput<IPortfolioFormValue>
-                    form={form}
-                    label="종료일"
-                    name="endDate"
-                    type="date"
-                    rules={{ required: '종료일은 필수값입니다' }}
-                  />
-                </div>
-
-                {/* 데이터 간격 */}
-                <div className="flex w-full gap-4">
-                  <div className="flex flex-col w-full space-y-2">
-                    <div className="flex items-center gap-x-1">
-                      <Label size="small" weight="plus">
-                        데이터 간격
-                      </Label>
-                    </div>
-                    <ControlledSelectBox<IPortfolioFormValue>
-                      form={form}
-                      placeholder="데이터 간격을 선택해주세요"
-                      name="interval"
-                      rules={{ required: '데이터 간격은 필수값입니다' }}
-                      options={intervalOptions}
-                    />
-                  </div>
-                </div>
 
                 {/* 포트폴리오 아이템들 */}
                 <div className="flex flex-col w-full space-y-4">

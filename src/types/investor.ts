@@ -22,7 +22,12 @@ export const getPortfolioStrategyLabel = (strategy: PortfolioStrategy) => {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface IBacktestingParams extends Record<string, any> {
+  name: string;
   portfolio: IPortfolioItem[];
+  id?: string;
+}
+
+export interface IBacktestingConfig {
   startDate: ISODateString;
   endDate: ISODateString;
   interval: '1d' | '1wk' | '1mo';
@@ -43,6 +48,12 @@ export interface IBacktestingSnapshot {
 
 export interface IBacktestingResult {
   result: IBacktestingSnapshot[];
+  portfolioId: string;
+  portfolioName: string;
+}
+
+export interface IMultipleBacktestingResults {
+  results: IBacktestingResult[];
 }
 
 export interface IPendingDividend {

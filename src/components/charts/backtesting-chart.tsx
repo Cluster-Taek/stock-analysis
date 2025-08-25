@@ -1,13 +1,13 @@
 'use client';
 
 import { BaseChart } from './base-chart';
-import { createLineDataset, getChartColors } from '@/lib/chart-config';
-import { IBacktestingSnapshot } from '@/types/investor';
+import { createLineDataset, getChartColors, portfolioColors } from '@/lib/chart-config';
+import { IBacktestingResult } from '@/types/investor';
 import { useTheme } from 'next-themes';
 import React, { useMemo } from 'react';
 
 interface BacktestingChartProps {
-  data: IBacktestingSnapshot[];
+  data: IBacktestingResult[];
   loading?: boolean;
   error?: string;
   height?: number;
@@ -25,30 +25,56 @@ export function BacktestingChart({
   const isDark = theme === 'dark';
   const colors = getChartColors(isDark);
 
-  const sortedData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    return [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [data]);
-
   const chartData = useMemo(() => {
-    if (sortedData.length === 0) return { labels: [], datasets: [] };
+    if (!data || data.length === 0) return { labels: [], datasets: [] };
 
-    const datasets = [];
-    const portfolioValueData = sortedData.map((item) => ({ x: item.date, y: item.capital }));
-    datasets.push(createLineDataset('Portfolio Value', portfolioValueData, colors.primary, false));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const datasets: any[] = [];
+    const allDates = new Set<string>();
+    
+    // 모든 포트폴리오의 날짜를 수집
+    data.forEach(portfolio => {
+      portfolio.result.forEach(snapshot => {
+        allDates.add(snapshot.date);
+      });
+    });
+    
+    const sortedDates = Array.from(allDates).sort();
+    
+    // 각 포트폴리오별로 데이터셋 생성
+    data.forEach((portfolio, index) => {
+      const sortedPortfolioData = [...portfolio.result].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      
+      const portfolioValueData = sortedPortfolioData.map((item) => ({ 
+        x: item.date, 
+        y: item.capital 
+      }));
+      
+      const color = portfolioColors[index % portfolioColors.length];
+      datasets.push(
+        createLineDataset(
+          portfolio.portfolioName, 
+          portfolioValueData, 
+          color, 
+          false
+        )
+      );
+    });
 
     return {
-      labels: sortedData.map((item) => item.date),
+      labels: sortedDates,
       datasets,
     };
-  }, [sortedData, colors]);
+  }, [data]);
 
   const chartOptions = useMemo(
     () => ({
       plugins: {
         title: {
           display: true,
-          text: 'Backtesting Result Chart',
+          text: 'Portfolio Comparison Chart',
           color: colors.text,
           font: { size: 16, weight: 600 },
         },
@@ -70,16 +96,24 @@ export function BacktestingChart({
                 );
               }
 
-              // Add profitRate
-              const snapshot = sortedData[context.dataIndex];
-              if (snapshot && snapshot.profitRate !== undefined) {
-                label += ` (수익률: ${(snapshot.profitRate * 100).toFixed(2)}%)`;
+              // 해당 포트폴리오의 스냅샷 데이터 찾기
+              const portfolioData = data[context.datasetIndex];
+              if (portfolioData) {
+                const dateValue = context.parsed.x;
+                const snapshot = portfolioData.result.find(s => new Date(s.date).getTime() === dateValue);
+                if (snapshot && snapshot.profitRate !== undefined) {
+                  label += ` (수익률: ${(snapshot.profitRate * 100).toFixed(2)}%)`;
+                }
               }
               return label;
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             afterLabel: function (context: any) {
-              const snapshot = sortedData[context.dataIndex];
+              const portfolioData = data[context.datasetIndex];
+              if (!portfolioData) return [];
+
+              const dateValue = context.parsed.x;
+              const snapshot = portfolioData.result.find(s => new Date(s.date).getTime() === dateValue);
               if (!snapshot) return [];
 
               const labels = [];
@@ -116,12 +150,12 @@ export function BacktestingChart({
           grid: { color: colors.grid },
           ticks: {
             color: colors.text,
-            callback: (value: string | number) => `${Number(value).toLocaleString()}`,
+            callback: (value: string | number) => `$${Number(value).toLocaleString()}`,
           },
         },
       },
     }),
-    [colors, sortedData] // Add sortedData to dependency array
+    [colors, data]
   );
 
   if (loading) {

@@ -2,17 +2,21 @@
 
 import useLocalStorage from '@/hooks/use-local-storage';
 import { BacktestingError, BACKTESTING_ERROR_CODES } from '@/types/errors';
-import { IBacktestingParams, IBacktestingResult } from '@/types/investor';
+import { IBacktestingParams, IBacktestingResult, IBacktestingConfig } from '@/types/investor';
 import { buildTimelineData, createDividendMaps, fetchDividendData, fetchHistoricalData, runBacktestingSimulation } from '@/utils/backtesting-utils';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-// --- Context Definition (기존 코드와 동일) ---
+// --- Context Definition (다중 포트폴리오 지원) ---
 interface IBacktestingContextType {
-  backtestingResult: IBacktestingResult | null;
+  portfolios: IBacktestingParams[];
+  selectedPortfolios: Set<string>;
+  backtestingResults: IBacktestingResult[];
   isLoading: boolean;
-  portfolioData: IBacktestingParams | null;
-  setPortfolioData: (data: IBacktestingParams | null) => void;
-  startBacktesting: (params: IBacktestingParams) => Promise<void>;
+  addPortfolio: (data: IBacktestingParams) => void;
+  updatePortfolio: (id: string, data: IBacktestingParams) => void;
+  deletePortfolio: (id: string) => void;
+  togglePortfolioSelection: (id: string) => void;
+  startBacktesting: (portfolioIds: string[], config: IBacktestingConfig) => Promise<void>;
 }
 
 interface IBacktestingContextProps {
@@ -21,135 +25,195 @@ interface IBacktestingContextProps {
 
 export const BacktestingContext = createContext<IBacktestingContextType>({} as IBacktestingContextType);
 
-// --- Provider Implementation (startBacktesting 로직 구현) ---
+// --- Provider Implementation (다중 포트폴리오 지원) ---
 const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) => {
-  const { value: portfolioData, setValue: setPortfolioData } = useLocalStorage<IBacktestingParams | null>(
-    'backtesting-params',
-    null
+  const { value: portfolios, setValue: setPortfolios } = useLocalStorage<IBacktestingParams[]>(
+    'backtesting-portfolios',
+    []
   );
-  const [backtestingResult, setBacktestingResult] = useState<IBacktestingResult | null>(null);
+  const [selectedPortfolios, setSelectedPortfolios] = useState<Set<string>>(new Set());
+  const [backtestingResults, setBacktestingResults] = useState<IBacktestingResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const startBacktesting = useCallback(
-    async (params: IBacktestingParams) => {
-      if (!params || params.portfolio.length === 0) {
-        throw new BacktestingError(
-          '포트폴리오 데이터가 없습니다.',
-          BACKTESTING_ERROR_CODES.INVALID_PARAMS,
-          { params }
-        );
+  // 포트폴리오 추가
+  const addPortfolio = useCallback((data: IBacktestingParams) => {
+    const id = crypto.randomUUID();
+    const portfolioWithId = { ...data, id };
+    const updatedPortfolios = [...portfolios, portfolioWithId];
+    setPortfolios(updatedPortfolios);
+    
+    // 새로 추가된 포트폴리오를 자동으로 선택
+    setSelectedPortfolios(prev => new Set([...Array.from(prev), id]));
+  }, [portfolios, setPortfolios]);
+
+  // 포트폴리오 수정
+  const updatePortfolio = useCallback((id: string, data: IBacktestingParams) => {
+    const updatedPortfolios = portfolios.map(p => 
+      p.id === id ? { ...data, id } : p
+    );
+    setPortfolios(updatedPortfolios);
+  }, [portfolios, setPortfolios]);
+
+  // 포트폴리오 삭제
+  const deletePortfolio = useCallback((id: string) => {
+    const updatedPortfolios = portfolios.filter(p => p.id !== id);
+    setPortfolios(updatedPortfolios);
+    
+    // 선택된 포트폴리오에서도 제거
+    setSelectedPortfolios(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id);
+      return newSet;
+    });
+    
+    // 백테스팅 결과에서도 제거
+    setBacktestingResults(prev => prev.filter(r => r.portfolioId !== id));
+  }, [portfolios, setPortfolios]);
+
+  // 포트폴리오 선택/해제 토글
+  const togglePortfolioSelection = useCallback((id: string) => {
+    setSelectedPortfolios(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
       }
+      return newSet;
+    });
+  }, []);
 
-      setIsLoading(true);
-      setBacktestingResult(null);
-
-      try {
-        // 1. 포트폴리오의 모든 종목 및 재투자 대상 종목 수집
-        const allSymbolsToFetch = new Set<string>();
-        params.portfolio.forEach((p) => {
-          allSymbolsToFetch.add(p.symbol);
-          if (p.strategy === 'REINVESTMENT' && p.reinvestmentTarget) {
-            allSymbolsToFetch.add(p.reinvestmentTarget);
-          }
-        });
-        const uniqueSymbols = Array.from(allSymbolsToFetch);
-
-        // 2. 데이터 패칭
-        const [fetchedResults, fetchedDividends] = await Promise.all([
-          fetchHistoricalData(uniqueSymbols, params),
-          fetchDividendData(uniqueSymbols)
-        ]);
-
-        console.log(fetchedResults);
-        console.log(fetchedDividends);
-
-        // 3. 데이터 가공
-        const { dividendMapBySymbolAndDate, payableDividendMapBySymbolAndDate } = createDividendMaps(fetchedDividends);
-        const timelineData = buildTimelineData(fetchedResults, dividendMapBySymbolAndDate);
-
-        // 4. 시뮬레이션 준비
-        const sortedDates = Array.from(timelineData.keys()).sort();
-        if (sortedDates.length === 0) {
-          throw new BacktestingError(
-            '선택된 기간에 대한 데이터가 없습니다.',
-            BACKTESTING_ERROR_CODES.NO_DATA_AVAILABLE,
-            { startDate: params.startDate, endDate: params.endDate }
-          );
-        }
-
-        // 모든 포트폴리오 종목의 데이터가 있는 실제 시작일 찾기
-        let actualStartDate: string | null = null;
-        for (const date of sortedDates) {
-          const dailyData = timelineData.get(date);
-          if (dailyData) {
-            const allSymbolsHaveData = params.portfolio.every(
-              (item) => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.close != null
-            );
-            if (allSymbolsHaveData) {
-              actualStartDate = date;
-              break;
-            }
-          }
-        }
-
-        if (!actualStartDate) {
-          throw new BacktestingError(
-            '선택된 기간 내에 모든 포트폴리오 종목의 유효한 시작 가격을 찾을 수 없습니다.',
-            BACKTESTING_ERROR_CODES.INVALID_START_DATE,
-            { 
-              requestedStartDate: params.startDate,
-              availableDates: sortedDates.slice(0, 5),
-              portfolioSymbols: params.portfolio.map(p => p.symbol)
-            }
-          );
-        }
-
-        const startIndex = sortedDates.indexOf(actualStartDate);
-        const simulationDates = sortedDates.slice(startIndex);
-
-        // 5. 시뮬레이션 실행
-        const snapshots = runBacktestingSimulation(
-          params,
-          timelineData,
-          payableDividendMapBySymbolAndDate,
-          uniqueSymbols,
-          actualStartDate,
-          simulationDates
-        );
-
-        setBacktestingResult({ result: snapshots });
-      } catch (error) {
-        console.error('백테스팅 실패:', error);
-        
-        if (error instanceof BacktestingError) {
-          console.error('BacktestingError:', {
-            code: error.code,
-            message: error.message,
-            details: error.details
-          });
-        }
-        
-        throw error;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [setIsLoading, setBacktestingResult]
-  );
-
-  useEffect(() => {
-    if (portfolioData) {
-      setBacktestingResult(null);
+  // 백테스팅 실행 (여러 포트폴리오)
+  const startBacktesting = useCallback(async (portfolioIds: string[], config: IBacktestingConfig) => {
+    if (portfolioIds.length === 0) {
+      throw new BacktestingError(
+        '선택된 포트폴리오가 없습니다.',
+        BACKTESTING_ERROR_CODES.INVALID_PARAMS,
+        { portfolioIds }
+      );
     }
-  }, [portfolioData]);
+
+    setIsLoading(true);
+    setBacktestingResults([]);
+
+    try {
+      const selectedPortfolioData = portfolios.filter(p => portfolioIds.includes(p.id!));
+      const results: IBacktestingResult[] = [];
+
+      // 각 포트폴리오에 대해 병렬로 백테스팅 실행
+      await Promise.all(
+        selectedPortfolioData.map(async (params) => {
+          try {
+            // 백테스팅 설정을 포트폴리오 데이터와 합치기
+            const paramsWithConfig = { ...params, ...config };
+
+            // 1. 포트폴리오의 모든 종목 및 재투자 대상 종목 수집
+            const allSymbolsToFetch = new Set<string>();
+            paramsWithConfig.portfolio.forEach((p) => {
+              allSymbolsToFetch.add(p.symbol);
+              if (p.strategy === 'REINVESTMENT' && p.reinvestmentTarget) {
+                allSymbolsToFetch.add(p.reinvestmentTarget);
+              }
+            });
+            const uniqueSymbols = Array.from(allSymbolsToFetch);
+
+            // 2. 데이터 패칭
+            const [fetchedResults, fetchedDividends] = await Promise.all([
+              fetchHistoricalData(uniqueSymbols, paramsWithConfig),
+              fetchDividendData(uniqueSymbols)
+            ]);
+
+            // 3. 데이터 가공
+            const { dividendMapBySymbolAndDate, payableDividendMapBySymbolAndDate } = createDividendMaps(fetchedDividends);
+            const timelineData = buildTimelineData(fetchedResults, dividendMapBySymbolAndDate);
+
+            // 4. 시뮬레이션 준비
+            const sortedDates = Array.from(timelineData.keys()).sort();
+            if (sortedDates.length === 0) {
+              throw new BacktestingError(
+                '선택된 기간에 대한 데이터가 없습니다.',
+                BACKTESTING_ERROR_CODES.NO_DATA_AVAILABLE,
+                { startDate: config.startDate, endDate: config.endDate }
+              );
+            }
+
+            // 모든 포트폴리오 종목의 데이터가 있는 실제 시작일 찾기
+            let actualStartDate: string | null = null;
+            for (const date of sortedDates) {
+              const dailyData = timelineData.get(date);
+              if (dailyData) {
+                const allSymbolsHaveData = paramsWithConfig.portfolio.every(
+                  (item) => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.close != null
+                );
+                if (allSymbolsHaveData) {
+                  actualStartDate = date;
+                  break;
+                }
+              }
+            }
+
+            if (!actualStartDate) {
+              throw new BacktestingError(
+                '선택된 기간 내에 모든 포트폴리오 종목의 유효한 시작 가격을 찾을 수 없습니다.',
+                BACKTESTING_ERROR_CODES.INVALID_START_DATE,
+                { 
+                  requestedStartDate: config.startDate,
+                  availableDates: sortedDates.slice(0, 5),
+                  portfolioSymbols: paramsWithConfig.portfolio.map(p => p.symbol)
+                }
+              );
+            }
+
+            const startIndex = sortedDates.indexOf(actualStartDate);
+            const simulationDates = sortedDates.slice(startIndex);
+
+            // 5. 시뮬레이션 실행
+            const snapshots = runBacktestingSimulation(
+              paramsWithConfig,
+              timelineData,
+              payableDividendMapBySymbolAndDate,
+              uniqueSymbols,
+              actualStartDate,
+              simulationDates
+            );
+
+            results.push({
+              result: snapshots,
+              portfolioId: params.id!,
+              portfolioName: params.name
+            });
+          } catch (error) {
+            console.error(`백테스팅 실패 (${params.name}):`, error);
+            // 개별 포트폴리오 실패시에도 다른 포트폴리오는 계속 진행
+          }
+        })
+      );
+
+      setBacktestingResults(results);
+    } catch (error) {
+      console.error('백테스팅 실패:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [portfolios]);
+
+  // 포트폴리오가 변경되면 백테스팅 결과 초기화
+  useEffect(() => {
+    setBacktestingResults([]);
+  }, [portfolios]);
 
   return (
     <BacktestingContext.Provider
       value={{
-        backtestingResult,
+        portfolios,
+        selectedPortfolios,
+        backtestingResults,
         isLoading,
-        portfolioData,
-        setPortfolioData,
+        addPortfolio,
+        updatePortfolio,
+        deletePortfolio,
+        togglePortfolioSelection,
         startBacktesting,
       }}
     >
