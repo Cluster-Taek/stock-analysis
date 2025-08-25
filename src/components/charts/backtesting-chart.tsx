@@ -99,10 +99,15 @@ export function BacktestingChart({
               // 해당 포트폴리오의 스냅샷 데이터 찾기
               const portfolioData = data[context.datasetIndex];
               if (portfolioData) {
-                const dateValue = context.parsed.x;
-                const snapshot = portfolioData.result.find(s => new Date(s.date).getTime() === dateValue);
-                if (snapshot && snapshot.profitRate !== undefined) {
-                  label += ` (수익률: ${(snapshot.profitRate * 100).toFixed(2)}%)`;
+                // 실제 데이터에서 날짜 가져오기
+                const dataPoint = context.dataset.data[context.dataIndex];
+                const dateStr = dataPoint ? dataPoint.x : null;
+                
+                if (dateStr) {
+                  const snapshot = portfolioData.result.find(s => s.date === dateStr);
+                  if (snapshot && snapshot.profitRate !== undefined) {
+                    label += ` (수익률: ${(snapshot.profitRate * 100).toFixed(2)}%)`;
+                  }
                 }
               }
               return label;
@@ -112,8 +117,13 @@ export function BacktestingChart({
               const portfolioData = data[context.datasetIndex];
               if (!portfolioData) return [];
 
-              const dateValue = context.parsed.x;
-              const snapshot = portfolioData.result.find(s => new Date(s.date).getTime() === dateValue);
+              // 실제 데이터에서 날짜 가져오기 (context.dataIndex를 사용)
+              const dataPoint = context.dataset.data[context.dataIndex];
+              const dateStr = dataPoint ? dataPoint.x : null;
+              
+              if (!dateStr) return [];
+              
+              const snapshot = portfolioData.result.find(s => s.date === dateStr);
               if (!snapshot) return [];
 
               const labels = [];
