@@ -25,7 +25,8 @@ export interface HistoricalDataResponse {
 }
 
 export interface StockPriceResponse {
-  success: boolean;
+  symbol: string;
+  name: string;
   price: number;
   currency: string;
   change: number;

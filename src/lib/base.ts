@@ -16,7 +16,7 @@ const _fetchApi = async <T = object>({ method, url, body }: IFetchApiArgs): Prom
 
   const response = await axios({
     method,
-    url: `${process.env.NEXT_PUBLIC_API_URL}${url.replace('/admin-api', '/admin-api/v1')}`,
+    url: `${process.env.NEXT_PUBLIC_API_URL}${url}`,
     data: method !== 'GET' ? body : undefined,
     params: method === 'GET' ? body : undefined,
     headers: {
