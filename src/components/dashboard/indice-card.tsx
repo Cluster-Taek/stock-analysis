@@ -8,7 +8,7 @@ interface IIndiceCardProps {
 
 const IndiceCard = ({ data }: IIndiceCardProps) => {
   const isPositive = data.change > 0;
-  const changeColor = isPositive ? 'text-ui-fg-interactive' : 'text-ui-fg-error';
+  const changeColor = isPositive ? 'text-ui-fg-error' : 'text-ui-fg-interactive';
 
   return (
     <Container className="flex flex-col gap-2">
@@ -19,8 +19,6 @@ const IndiceCard = ({ data }: IIndiceCardProps) => {
       <div className="flex flex-row gap-1 items-center">
         <Text size="xsmall" className={changeColor}>
           {data.change > 0 ? '+' : ''}
-        </Text>
-        <Text size="xsmall" className={changeColor}>
           {data.change.toFixed(2)} ({data.changePercent.toFixed(2)}%)
         </Text>
         {isPositive ? <TriangleUpMini className={changeColor} /> : <TriangleDownMini className={changeColor} />}
