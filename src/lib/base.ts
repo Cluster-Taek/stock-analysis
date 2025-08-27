@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { getSession, signOut } from 'next-auth/react';
-import { redirect } from 'next/navigation';
 
 type Body = Record<string, unknown> | Record<string, unknown>[];
 
@@ -12,8 +10,6 @@ interface IFetchApiArgs {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const _fetchApi = async <T = object>({ method, url, body }: IFetchApiArgs): Promise<T> => {
-  const session = await getSession();
-
   const response = await axios({
     method,
     url: `${process.env.NEXT_PUBLIC_API_URL}${url}`,
@@ -21,21 +17,10 @@ const _fetchApi = async <T = object>({ method, url, body }: IFetchApiArgs): Prom
     params: method === 'GET' ? body : undefined,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${session?.user?.accessToken}`,
     },
-    withCredentials: true,
   }).catch(async (error) => {
     // Case. SSR
     if (typeof window === 'undefined') throw error;
-
-    // Case CSR
-    if (error?.status === 401 && !window.location.pathname.startsWith('/login')) {
-      if (window.location.pathname.startsWith('/external')) {
-        throw error;
-      }
-      await signOut();
-      redirect('/login');
-    }
 
     throw error;
   });
