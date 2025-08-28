@@ -128,6 +128,22 @@ export function BacktestingChart({
 
               const labels = [];
               
+              // Add dividend information first
+              if (snapshot.dividendsReceived) {
+                const dividendEntries = Object.entries(snapshot.dividendsReceived);
+                if (dividendEntries.length > 0) {
+                  labels.push('🎉 배당금:');
+                  dividendEntries.forEach(([symbol, amount]) => {
+                    const formattedAmount = new Intl.NumberFormat('en-US', { 
+                      style: 'currency', 
+                      currency: 'USD' 
+                    }).format(amount);
+                    labels.push(`  ${symbol}: ${formattedAmount}`);
+                  });
+                  labels.push(''); // Add empty line for spacing
+                }
+              }
+              
               // Add cash information
               if (snapshot.cash !== undefined) {
                 labels.push(`현금: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(snapshot.cash)}`);

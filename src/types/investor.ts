@@ -45,6 +45,7 @@ export interface IBacktestingSnapshot {
   cash: number; // 현금 잔고
   holdings: Record<string, number>; // 종목별 보유 주식 수 (symbol -> shares)
   currentPrices?: Record<string, number>; // 종목별 현재가 (symbol -> price)
+  dividendsReceived?: Record<string, number>; // 종목별 당일 받은 배당금 (symbol -> dividend amount)
 }
 
 export interface IBacktestingResult {

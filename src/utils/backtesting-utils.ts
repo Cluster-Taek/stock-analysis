@@ -236,8 +236,10 @@ export function runBacktestingSimulation(
     const dividendsToExecute = pendingDividends.filter(dividend => dividend.payableDate === date);
     const remainingDividends = pendingDividends.filter(dividend => dividend.payableDate !== date);
     
+    const dividendsReceived: Record<string, number> = {};
     for (const dividend of dividendsToExecute) {
       cash += processDividendPayment(dividend, dailyData, lastKnownPrices, portfolioState);
+      dividendsReceived[dividend.symbol] = (dividendsReceived[dividend.symbol] || 0) + dividend.amount;
     }
     
     // Update pending dividends queue
@@ -270,6 +272,7 @@ export function runBacktestingSimulation(
       cash,
       holdings: currentHoldings,
       currentPrices,
+      dividendsReceived: Object.keys(dividendsReceived).length > 0 ? dividendsReceived : undefined,
     });
   }
 
