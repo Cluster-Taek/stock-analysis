@@ -38,7 +38,15 @@ export const parseValidDate = (dateInput: string | number | undefined, fallback:
   if (!dateInput) return fallback;
   
   try {
-    const date = new Date(dateInput);
+    let dateStr = dateInput.toString();
+    
+    // MM/DD/YYYY 형식을 YYYY-MM-DD로 변환
+    if (typeof dateInput === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateInput)) {
+      const [month, day, year] = dateInput.split('/');
+      dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    const date = new Date(dateStr);
     if (isNaN(date.getTime())) return fallback;
     return date.toISOString().split('T')[0];
   } catch {

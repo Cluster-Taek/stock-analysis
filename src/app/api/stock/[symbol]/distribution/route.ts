@@ -75,9 +75,6 @@ async function scrapeDistributionData(symbol: string): Promise<DistributionData>
     // SEC Yield: table_382_row_0의 두 번째 td
     const secYieldText = $(`#table_${tableMapping.secYieldTable}_row_0 td:nth-child(2)`).text().trim();
 
-    console.log(`Raw distribution rate: "${distributionRateText}"`);
-    console.log(`Raw SEC yield: "${secYieldText}"`);
-
     // 숫자 파싱
     const distributionRate = parseFloat(distributionRateText) || 0;
     const secYield = parseFloat(secYieldText) || 0;
@@ -93,7 +90,6 @@ async function scrapeDistributionData(symbol: string): Promise<DistributionData>
       distributionHistory,
     };
 
-    console.log('Scraped distribution data:', distributionData);
     return distributionData;
   } catch (error) {
     console.error(`Error scraping data for ${symbol}:`, error);
@@ -149,7 +145,6 @@ async function scrapeDistributionHistory(
           };
 
           distributionHistory.push(distributionItem);
-          console.log(`Distribution ${rowIndex}: ${amount} on ${dateText}`);
         }
       }
 

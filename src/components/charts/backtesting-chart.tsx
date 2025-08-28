@@ -31,36 +31,68 @@ export function BacktestingChart({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const datasets: any[] = [];
     const allDates = new Set<string>();
-    
+
     // 모든 포트폴리오의 날짜를 수집
-    data.forEach(portfolio => {
-      portfolio.result.forEach(snapshot => {
+    data.forEach((portfolio) => {
+      portfolio.result.forEach((snapshot) => {
         allDates.add(snapshot.date);
       });
     });
-    
+
     const sortedDates = Array.from(allDates).sort();
-    
+
     // 각 포트폴리오별로 데이터셋 생성
     data.forEach((portfolio, index) => {
       const sortedPortfolioData = [...portfolio.result].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
-      
-      const portfolioValueData = sortedPortfolioData.map((item) => ({ 
-        x: item.date, 
-        y: item.capital 
+
+      const portfolioValueData = sortedPortfolioData.map((item) => ({
+        x: item.date,
+        y: item.capital,
       }));
-      
+
       const color = portfolioColors[index % portfolioColors.length];
-      datasets.push(
-        createLineDataset(
-          portfolio.portfolioName, 
-          portfolioValueData, 
-          color, 
-          false
-        )
-      );
+      const lineDataset = createLineDataset(portfolio.portfolioName, portfolioValueData, color, false);
+
+      // 배당금이 있는 날짜의 포인트를 강조하기 위한 설정
+      const pointBackgroundColors = sortedPortfolioData.map((item) => {
+        const hasDividends = item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0;
+        return hasDividends ? '#22c55e' : color;
+      });
+
+      const pointBorderColors = sortedPortfolioData.map((item) => {
+        const hasDividends = item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0;
+        return hasDividends ? '#16a34a' : color;
+      });
+
+      const pointRadius = sortedPortfolioData.map((item) => {
+        const hasDividends = item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0;
+        return hasDividends ? 3 : 0;
+      });
+
+      // 배당금이 있는 날짜 디버깅
+      const dividendDates = sortedPortfolioData
+        .filter((item) => item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0)
+        .map((item) => ({
+          date: item.date,
+          dividends: item.dividendsReceived,
+        }));
+
+      if (dividendDates.length > 0) {
+        console.log(`📊 ${portfolio.portfolioName} 차트에 표시될 배당금 날짜들:`, dividendDates);
+      }
+
+      // 포인트 스타일 오버라이드
+      const enhancedDataset = {
+        ...lineDataset,
+        pointBackgroundColor: pointBackgroundColors,
+        pointBorderColor: pointBorderColors,
+        pointRadius: pointRadius,
+        pointHoverRadius: pointRadius.map((r) => r + 2),
+      };
+
+      datasets.push(enhancedDataset);
     });
 
     return {
@@ -102,9 +134,9 @@ export function BacktestingChart({
                 // 실제 데이터에서 날짜 가져오기
                 const dataPoint = context.dataset.data[context.dataIndex];
                 const dateStr = dataPoint ? dataPoint.x : null;
-                
+
                 if (dateStr) {
-                  const snapshot = portfolioData.result.find(s => s.date === dateStr);
+                  const snapshot = portfolioData.result.find((s) => s.date === dateStr);
                   if (snapshot && snapshot.profitRate !== undefined) {
                     label += ` (수익률: ${(snapshot.profitRate * 100).toFixed(2)}%)`;
                   }
@@ -120,33 +152,35 @@ export function BacktestingChart({
               // 실제 데이터에서 날짜 가져오기 (context.dataIndex를 사용)
               const dataPoint = context.dataset.data[context.dataIndex];
               const dateStr = dataPoint ? dataPoint.x : null;
-              
+
               if (!dateStr) return [];
-              
-              const snapshot = portfolioData.result.find(s => s.date === dateStr);
+
+              const snapshot = portfolioData.result.find((s) => s.date === dateStr);
               if (!snapshot) return [];
 
               const labels = [];
-              
+
               // Add dividend information first
               if (snapshot.dividendsReceived) {
                 const dividendEntries = Object.entries(snapshot.dividendsReceived);
                 if (dividendEntries.length > 0) {
                   labels.push('🎉 배당금:');
                   dividendEntries.forEach(([symbol, amount]) => {
-                    const formattedAmount = new Intl.NumberFormat('en-US', { 
-                      style: 'currency', 
-                      currency: 'USD' 
+                    const formattedAmount = new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
                     }).format(amount);
                     labels.push(`  ${symbol}: ${formattedAmount}`);
                   });
                   labels.push(''); // Add empty line for spacing
                 }
               }
-              
+
               // Add cash information
               if (snapshot.cash !== undefined) {
-                labels.push(`현금: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(snapshot.cash)}`);
+                labels.push(
+                  `현금: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(snapshot.cash)}`
+                );
               }
 
               // Add holdings information
@@ -156,7 +190,7 @@ export function BacktestingChart({
                   labels.push('보유 주식:');
                   holdingEntries.forEach(([symbol, shares]) => {
                     const currentPrice = snapshot.currentPrices?.[symbol];
-                    const priceInfo = currentPrice 
+                    const priceInfo = currentPrice
                       ? ` (현재가: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(currentPrice)})`
                       : '';
                     labels.push(`  ${symbol}: ${shares.toFixed(4)}주${priceInfo}`);

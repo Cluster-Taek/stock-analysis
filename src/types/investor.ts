@@ -67,7 +67,7 @@ export interface IPendingDividend {
 }
 
 export interface DividendData {
-  date: number;
+  date: string;
   amount: number;
   exDate?: string;
   payableDate?: string;

@@ -1,8 +1,9 @@
+import { parseValidDate } from './utils';
+import { isYieldmaxSymbol } from './yieldmax-utils';
 import { BACKTESTING_CONSTANTS } from '@/constants/backtesting';
 import { DividendData, DividendResponse, HistoricalData, IBacktestingParams, IPendingDividend } from '@/types/investor';
 import { ApiResponse, HistoricalDataResponse } from '@/types/yahoo-finance';
-import { parseValidDate, toDateString } from './utils';
-import { isYieldmaxSymbol } from './yieldmax-utils';
+import { DistributionHistoryItem } from '@/types/yieldmax';
 
 export async function fetchHistoricalData(
   symbols: string[],
@@ -36,45 +37,71 @@ export async function fetchDividendData(symbols: string[]): Promise<DividendResp
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
-      return { symbol, data: (await response.json()).data.distributionHistory };
+      const apiResponse = await response.json();
+      const distributionHistory = apiResponse.data.distributionHistory;
+
+      // DistributionHistoryItem을 DividendData로 변환
+      const convertedData: DividendData[] = distributionHistory.map((item: DistributionHistoryItem) => ({
+        date: parseValidDate(item.date, item.date),
+        amount: item.amount,
+        exDate: item.exDate,
+        payableDate: item.payableDate,
+      }));
+
+      return { symbol, data: convertedData };
     });
 
   return Promise.all(dividendsPromises);
 }
 
 export function createDividendMaps(fetchedDividends: DividendResponse[]): {
-  dividendMapBySymbolAndDate: Map<string, Map<string, number>>;
+  dividendMapBySymbolAndDate: Map<string, Map<string, { dividend: number; payableDate: string }>>;
   payableDividendMapBySymbolAndDate: Map<string, Map<string, number>>;
 } {
-  const dividendMapBySymbolAndDate = new Map<string, Map<string, number>>();
+  const dividendMapBySymbolAndDate = new Map<string, Map<string, { dividend: number; payableDate: string }>>();
   const payableDividendMapBySymbolAndDate = new Map<string, Map<string, number>>();
 
   for (const { symbol, data: dividends } of fetchedDividends) {
-    const exDateMap = new Map<string, number>();
+    const exDateMap = new Map<string, { dividend: number; payableDate: string }>();
     const payableDateMap = new Map<string, number>();
-    
+
     dividends.forEach((div: DividendData) => {
-      const baseDateStr = toDateString(div.date);
-      
+      // div.date는 이미 string 형태 (YYYY-MM-DD)
+      const baseDateStr = div.date;
+
       const exDateStr = parseValidDate(div.exDate, baseDateStr);
-      exDateMap.set(exDateStr, div.amount);
-      
       const payableDateStr = parseValidDate(div.payableDate, exDateStr);
+      
+      // ex-date에 배당금과 실제 payableDate 정보 저장
+      exDateMap.set(exDateStr, {
+        dividend: div.amount,
+        payableDate: payableDateStr
+      });
+
       payableDateMap.set(payableDateStr, div.amount);
     });
-    
+
     dividendMapBySymbolAndDate.set(symbol, exDateMap);
     payableDividendMapBySymbolAndDate.set(symbol, payableDateMap);
   }
+
+  // API에서 가져온 배당금 데이터 총계 출력
+  console.log('📋 API에서 가져온 배당금 데이터 총계:');
+  let totalApiDividends = 0;
+  for (const { symbol, data: dividends } of fetchedDividends) {
+    console.log(`  📊 ${symbol}: ${dividends.length}건`);
+    totalApiDividends += dividends.length;
+  }
+  console.log(`  🔢 총 API 배당금 데이터: ${totalApiDividends}건`);
 
   return { dividendMapBySymbolAndDate, payableDividendMapBySymbolAndDate };
 }
 
 export function buildTimelineData(
   fetchedResults: HistoricalData[],
-  dividendMapBySymbolAndDate: Map<string, Map<string, number>>
-): Map<string, Map<string, { close: number; dividend: number }>> {
-  const timelineData = new Map<string, Map<string, { close: number; dividend: number }>>();
+  dividendMapBySymbolAndDate: Map<string, Map<string, { dividend: number; payableDate: string }>>
+): Map<string, Map<string, { close: number; dividend: number; payableDate?: string }>> {
+  const timelineData = new Map<string, Map<string, { close: number; dividend: number; payableDate?: string }>>();
 
   for (const { symbol, data } of fetchedResults) {
     for (const item of data) {
@@ -82,11 +109,14 @@ export function buildTimelineData(
         const dateStr = item.date; // 이미 YYYY-MM-DD 형식
         if (!timelineData.has(dateStr)) timelineData.set(dateStr, new Map());
 
-        const dividendAmount = dividendMapBySymbolAndDate.get(symbol)?.get(dateStr) || 0;
+        const dividendInfo = dividendMapBySymbolAndDate.get(symbol)?.get(dateStr);
+        const dividendAmount = dividendInfo?.dividend || 0;
+        const payableDate = dividendInfo?.payableDate;
 
         timelineData.get(dateStr)!.set(symbol, {
           close: item.close,
           dividend: dividendAmount,
+          payableDate: payableDate,
         });
       }
     }
@@ -103,13 +133,13 @@ export function findPayableDate(
 ): string {
   const payableDateMap = payableDividendMapBySymbolAndDate.get(symbol);
   let payableDate = date;
-  
+
   if (payableDateMap) {
     const entries = Array.from(payableDateMap.entries());
-    const exactMatch = entries.find(([, amount]) => 
-      Math.abs(amount - dividendAmount) < BACKTESTING_CONSTANTS.DIVIDEND_COMPARISON_TOLERANCE
+    const exactMatch = entries.find(
+      ([, amount]) => Math.abs(amount - dividendAmount) < BACKTESTING_CONSTANTS.DIVIDEND_COMPARISON_TOLERANCE
     );
-    
+
     if (exactMatch && exactMatch[0] >= date) {
       payableDate = exactMatch[0];
     } else {
@@ -120,7 +150,7 @@ export function findPayableDate(
       }
     }
   }
-  
+
   return payableDate;
 }
 
@@ -154,19 +184,25 @@ export function calculateCAGR(
   startDate: string,
   endDate: string
 ): number {
-  const years = (new Date(endDate).getTime() - new Date(startDate).getTime()) / BACKTESTING_CONSTANTS.MILLISECONDS_PER_YEAR;
+  const years =
+    (new Date(endDate).getTime() - new Date(startDate).getTime()) / BACKTESTING_CONSTANTS.MILLISECONDS_PER_YEAR;
   if (years <= 0) return 0;
   return Math.pow(finalCapital / initialCapital, 1 / years) - 1;
 }
 
 export function runBacktestingSimulation(
   params: IBacktestingParams,
-  timelineData: Map<string, Map<string, { close: number; dividend: number }>>,
+  timelineData: Map<string, Map<string, { close: number; dividend: number; payableDate?: string }>>,
   payableDividendMapBySymbolAndDate: Map<string, Map<string, number>>,
   uniqueSymbols: string[],
   actualStartDate: string,
   simulationDates: string[]
 ) {
+  // 배당금 발생 횟수 추적
+  const dividendOccurrences: Record<string, number> = {};
+  uniqueSymbols.forEach(symbol => {
+    dividendOccurrences[symbol] = 0;
+  });
   const initialCapital = params.portfolio.reduce((sum, item) => sum + item.amount, 0);
   const portfolioState: Record<string, { shares: number }> = {};
   const lastKnownPrices: Record<string, number> = {};
@@ -212,36 +248,59 @@ export function runBacktestingSimulation(
       const shares = portfolioState[symbol]?.shares || 0;
       if (shares > 0) {
         const priceData = dailyData.get(symbol);
+
         if (priceData && priceData.dividend > 0) {
           const dividendReceived = shares * priceData.dividend;
-          const payableDate = findPayableDate(date, symbol, priceData.dividend, payableDividendMapBySymbolAndDate);
+          // API에서 제공하는 실제 payableDate 사용
+          const payableDate = priceData.payableDate || date; // fallback to ex-date if no payableDate
+
+          // 배당금 발생 횟수 증가
+          dividendOccurrences[symbol]++;
+
+          // 백테스팅 종료일과 비교
+          const lastDate = simulationDates[simulationDates.length - 1];
+          const willBeProcessed = payableDate <= lastDate;
           
+          console.log(`📊 [${date}] ${symbol} 배당금 발생 (${dividendOccurrences[symbol]}회차):`);
+          console.log(`  - 보유주식: ${shares.toFixed(2)}주`);
+          console.log(`  - 주당배당금: $${priceData.dividend}`);
+          console.log(`  - 총 배당금: $${dividendReceived.toFixed(2)}`);
+          console.log(`  - 지급예정일: ${payableDate} ${willBeProcessed ? '✅' : '❌ (기간 외)'}`);
+          console.log(`  - 백테스팅 종료: ${lastDate}`);
+
           // Find the original portfolio item or reinvestment target configuration
-          const originalItem = params.portfolio.find(item => item.symbol === symbol);
+          const originalItem = params.portfolio.find((item) => item.symbol === symbol);
           const reinvestmentTarget = originalItem?.reinvestmentTarget || symbol; // Default to same symbol for reinvestment targets
           const strategy = originalItem?.strategy || 'REINVESTMENT'; // Default reinvestment for dividend stocks
-          
+
           pendingDividends.push({
             symbol: symbol,
             amount: dividendReceived,
             payableDate,
             reinvestmentTarget: reinvestmentTarget,
-            strategy: strategy
+            strategy: strategy,
           });
         }
       }
     }
 
     // Process dividend payments
-    const dividendsToExecute = pendingDividends.filter(dividend => dividend.payableDate === date);
-    const remainingDividends = pendingDividends.filter(dividend => dividend.payableDate !== date);
-    
+    const dividendsToExecute = pendingDividends.filter((dividend) => dividend.payableDate === date);
+    const remainingDividends = pendingDividends.filter((dividend) => dividend.payableDate !== date);
+
     const dividendsReceived: Record<string, number> = {};
-    for (const dividend of dividendsToExecute) {
-      cash += processDividendPayment(dividend, dailyData, lastKnownPrices, portfolioState);
-      dividendsReceived[dividend.symbol] = (dividendsReceived[dividend.symbol] || 0) + dividend.amount;
+    if (dividendsToExecute.length > 0) {
+      console.log(`💰 [${date}] 배당금 지급 처리:`);
     }
     
+    for (const dividend of dividendsToExecute) {
+      const cashGenerated = processDividendPayment(dividend, dailyData, lastKnownPrices, portfolioState);
+      cash += cashGenerated;
+      dividendsReceived[dividend.symbol] = (dividendsReceived[dividend.symbol] || 0) + dividend.amount;
+      
+      console.log(`  💵 ${dividend.symbol}: $${dividend.amount.toFixed(2)} (${dividend.strategy === 'REINVESTMENT' ? '재투자' : '현금'}) → 현금 증가: $${cashGenerated.toFixed(2)}`);
+    }
+
     // Update pending dividends queue
     pendingDividends.length = 0;
     pendingDividends.push(...remainingDividends);
@@ -259,6 +318,15 @@ export function runBacktestingSimulation(
         currentPrices[symbol] = price;
       }
     });
+
+    // 배당금이 기록된 날짜의 스냅샷 로그
+    if (Object.keys(dividendsReceived).length > 0) {
+      console.log(`📈 [${date}] 스냅샷에 배당금 기록:`);
+      Object.entries(dividendsReceived).forEach(([symbol, amount]) => {
+        console.log(`  📊 ${symbol}: $${amount.toFixed(2)}`);
+      });
+      console.log(`  💼 총 자본: $${capital.toFixed(2)} (현금: $${cash.toFixed(2)})`);
+    }
 
     snapshots.push({
       date,
@@ -281,6 +349,61 @@ export function runBacktestingSimulation(
     const first = snapshots[0];
     const last = snapshots[snapshots.length - 1];
     last.profitRatePerYear = calculateCAGR(first.capital, last.capital, first.date, last.date);
+  }
+
+  // 배당금 발생 횟수 총계 출력
+  console.log('🎯 백테스팅 배당금 발생 횟수 총계:');
+  const totalDividendOccurrences = Object.values(dividendOccurrences).reduce((sum, count) => sum + count, 0);
+  Object.entries(dividendOccurrences).forEach(([symbol, count]) => {
+    console.log(`  📊 ${symbol}: ${count}회`);
+  });
+  console.log(`  🔢 총 배당금 발생: ${totalDividendOccurrences}회`);
+  
+  // 미지급 배당금 확인 (백테스팅 기간을 벗어난 케이스들)
+  if (pendingDividends.length > 0) {
+    const lastSimulationDate = simulationDates[simulationDates.length - 1];
+    console.log('⏳ 백테스팅 기간을 벗어난 미지급 배당금들:');
+    console.log(`   📅 백테스팅 종료일: ${lastSimulationDate}`);
+    console.log('');
+    
+    pendingDividends.forEach((div, index) => {
+      const isOutsideRange = div.payableDate > lastSimulationDate;
+      console.log(`  💸 #${index + 1} ${div.symbol}:`);
+      console.log(`     💰 금액: $${div.amount.toFixed(2)}`);
+      console.log(`     📅 지급예정일: ${div.payableDate}`);
+      console.log(`     ⚠️ 기간 초과: ${isOutsideRange ? 'YES' : 'NO'} (${isOutsideRange ? div.payableDate + ' > ' + lastSimulationDate : '기간 내'})`);
+      console.log(`     🔄 전략: ${div.strategy}`);
+      if (div.reinvestmentTarget) {
+        console.log(`     🎯 재투자 대상: ${div.reinvestmentTarget}`);
+      }
+      console.log('');
+    });
+    console.log(`  🔢 미지급 배당금 총 ${pendingDividends.length}건`);
+    
+    const outsideRangeCount = pendingDividends.filter(div => div.payableDate > lastSimulationDate).length;
+    const withinRangeCount = pendingDividends.length - outsideRangeCount;
+    
+    if (outsideRangeCount > 0) {
+      console.log(`  📊 기간 초과: ${outsideRangeCount}건`);
+    }
+    if (withinRangeCount > 0) {
+      console.log(`  📊 기간 내 미처리: ${withinRangeCount}건 (처리 로직 확인 필요)`);
+    }
+  }
+  
+  // 실제 지급된 배당금 총계
+  const totalPaidDividends = snapshots.reduce((total, snapshot) => {
+    if (snapshot.dividendsReceived) {
+      return total + Object.keys(snapshot.dividendsReceived).length;
+    }
+    return total;
+  }, 0);
+  
+  console.log(`💰 실제 지급된 배당금: ${totalPaidDividends}회`);
+  console.log(`📊 차트 표시 예상: ${totalPaidDividends}회`);
+  
+  if (totalDividendOccurrences !== totalPaidDividends) {
+    console.log(`⚠️ 차이: ${totalDividendOccurrences - totalPaidDividends}회 미지급`);
   }
 
   return snapshots;
