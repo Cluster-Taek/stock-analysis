@@ -1,6 +1,7 @@
 import { parseValidDate } from './utils';
 import { isYieldmaxSymbol } from './yieldmax-utils';
 import { checkTrigger, executeTrade, validateTradingRule } from './trading-utils';
+import { calculateMultipleHistoricalRSI } from './indicator-utils';
 import { BACKTESTING_CONSTANTS } from '@/constants/backtesting';
 import { DividendData, DividendResponse, HistoricalData, IBacktestingParams, IPendingDividend, ITradeExecution } from '@/types/investor';
 import { ApiResponse, HistoricalDataResponse } from '@/types/yahoo-finance';
@@ -219,6 +220,57 @@ export function runBacktestingSimulation(
     });
   }
 
+  // RSI 데이터 사전 계산
+  const rsiData = new Map<string, Map<string, number>>();
+
+  // 거래 규칙에서 RSI를 사용하는 종목들과 기간 찾기
+  const rsiSymbolsMap = new Map<string, number>(); // symbol -> period
+  tradingRules.forEach(rule => {
+    if (rule.triggerType === 'RSI' && rule.triggerConfig.rsiCondition) {
+      const { symbol, period } = rule.triggerConfig.rsiCondition;
+      // 동일한 종목에 대해 더 큰 기간이 필요한 경우 업데이트
+      const existingPeriod = rsiSymbolsMap.get(symbol);
+      if (!existingPeriod || period > existingPeriod) {
+        rsiSymbolsMap.set(symbol, period);
+      }
+    }
+  });
+
+  // RSI를 사용하는 종목이 있으면 계산
+  if (rsiSymbolsMap.size > 0) {
+    console.log(`📊 RSI 계산 대상 종목: ${Array.from(rsiSymbolsMap.keys()).join(', ')}`);
+
+    // 각 종목별로 RSI 계산
+    rsiSymbolsMap.forEach((period, symbol) => {
+      console.log(`  🔢 ${symbol}: RSI(${period}) 계산 중...`);
+
+      // 해당 종목의 히스토리컬 데이터 추출
+      const dates = Array.from(timelineData.keys()).sort();
+      const historicalData: Array<{ date: string; close: number }> = [];
+
+      for (const date of dates) {
+        const dailyData = timelineData.get(date);
+        const priceData = dailyData?.get(symbol);
+
+        if (priceData?.close !== undefined) {
+          historicalData.push({
+            date,
+            close: priceData.close,
+          });
+        }
+      }
+
+      // RSI 계산 (단일 종목, 단일 기간)
+      const symbolRSIData = calculateMultipleHistoricalRSI(timelineData, [symbol], period);
+      const rsiValues = symbolRSIData.get(symbol);
+
+      if (rsiValues) {
+        rsiData.set(symbol, rsiValues);
+        console.log(`  ✅ ${symbol}: ${rsiValues.size}개 날짜의 RSI 계산 완료`);
+      }
+    });
+  }
+
   const portfolioTotal = params.portfolio.reduce((sum, item) => sum + item.amount, 0);
   const initialCashAmount = params.initialCash || 0;
   const initialCapital = portfolioTotal + initialCashAmount;
@@ -339,7 +391,7 @@ export function runBacktestingSimulation(
 
       for (const rule of tradingRules) {
         // Check if trigger conditions are met
-        const triggerMet = checkTrigger(rule, date, lastKnownPrices, costBasisMap);
+        const triggerMet = checkTrigger(rule, date, lastKnownPrices, costBasisMap, rsiData);
 
         if (triggerMet) {
           console.log(`🎯 [${date}] 거래 규칙 트리거: ${rule.action} ${rule.symbol}`);

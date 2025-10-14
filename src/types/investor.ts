@@ -92,7 +92,7 @@ export interface DividendResponse {
 }
 
 // Trading Rule Types
-export type TriggerType = 'DATE' | 'INTERVAL' | 'PRICE' | 'COST_BASIS';
+export type TriggerType = 'DATE' | 'INTERVAL' | 'PRICE' | 'COST_BASIS' | 'RSI';
 export type TradingAction = 'BUY' | 'SELL';
 export type AmountType = 'FIXED' | 'PERCENTAGE';
 export type IntervalType = 'DAILY' | 'WEEKLY' | 'MONTHLY';
@@ -120,6 +120,14 @@ export interface ITriggerConfig {
     operator: '>' | '<' | '>=' | '<=';
     differenceType: DifferenceType;
     differenceValue: number; // 비율(%) 또는 절대값($)
+  };
+
+  // RSI trigger
+  rsiCondition?: {
+    symbol: string; // 대상 종목
+    period: number; // RSI 계산 기간 (기본값: 14)
+    operator: '>' | '<' | '>=' | '<='; // 비교 연산자
+    threshold: number; // RSI 임계값 (0-100)
   };
 }
 

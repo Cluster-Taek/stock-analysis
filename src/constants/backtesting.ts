@@ -8,7 +8,7 @@ export const BACKTESTING_CONSTANTS = {
 } as const;
 
 // Trading Rule Constants
-export const TRIGGER_TYPES: TriggerType[] = ['DATE', 'INTERVAL', 'PRICE', 'COST_BASIS'];
+export const TRIGGER_TYPES: TriggerType[] = ['DATE', 'INTERVAL', 'PRICE', 'COST_BASIS', 'RSI'];
 export const TRADING_ACTIONS: TradingAction[] = ['BUY', 'SELL'];
 export const AMOUNT_TYPES: AmountType[] = ['FIXED', 'PERCENTAGE'];
 export const INTERVAL_TYPES: IntervalType[] = ['DAILY', 'WEEKLY', 'MONTHLY'];
@@ -19,6 +19,7 @@ export const TRIGGER_TYPE_LABELS: Record<TriggerType, string> = {
   INTERVAL: '주기적',
   PRICE: '가격 조건',
   COST_BASIS: '평균 매수가 기준',
+  RSI: 'RSI 지표',
 };
 
 export const TRADING_ACTION_LABELS: Record<TradingAction, string> = {

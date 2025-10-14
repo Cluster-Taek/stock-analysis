@@ -118,6 +118,40 @@ function checkCostBasisTrigger(
 }
 
 /**
+ * RSI 기반 트리거 체크
+ */
+function checkRSITrigger(
+  rule: ITradingRule,
+  currentDate: string,
+  rsiData: Map<string, Map<string, number>>
+): boolean {
+  const { rsiCondition } = rule.triggerConfig;
+  if (!rsiCondition) return false;
+
+  // 해당 종목의 RSI 데이터 가져오기
+  const symbolRSIData = rsiData.get(rsiCondition.symbol);
+  if (!symbolRSIData) return false;
+
+  // 현재 날짜의 RSI 값 가져오기
+  const currentRSI = symbolRSIData.get(currentDate);
+  if (currentRSI === undefined) return false;
+
+  // RSI 조건 체크
+  switch (rsiCondition.operator) {
+    case '>':
+      return currentRSI > rsiCondition.threshold;
+    case '<':
+      return currentRSI < rsiCondition.threshold;
+    case '>=':
+      return currentRSI >= rsiCondition.threshold;
+    case '<=':
+      return currentRSI <= rsiCondition.threshold;
+    default:
+      return false;
+  }
+}
+
+/**
  * 트리거 체커 맵 (확장 가능한 구조)
  * 새로운 트리거 타입 추가 시 여기에 함수만 추가하면 됨
  */
@@ -125,7 +159,8 @@ type TriggerChecker = (
   rule: ITradingRule,
   currentDate: string,
   currentPrices: Record<string, number>,
-  costBasis: Record<string, number>
+  costBasis: Record<string, number>,
+  rsiData: Map<string, Map<string, number>>
 ) => boolean;
 
 const TRIGGER_CHECKERS: Record<string, TriggerChecker> = {
@@ -133,6 +168,7 @@ const TRIGGER_CHECKERS: Record<string, TriggerChecker> = {
   INTERVAL: (rule, currentDate) => checkIntervalTrigger(rule, currentDate),
   PRICE: (rule, currentDate, currentPrices) => checkPriceTrigger(rule, currentPrices),
   COST_BASIS: (rule, currentDate, currentPrices, costBasis) => checkCostBasisTrigger(rule, currentPrices, costBasis),
+  RSI: (rule, currentDate, currentPrices, costBasis, rsiData) => checkRSITrigger(rule, currentDate, rsiData),
 };
 
 /**
@@ -142,7 +178,8 @@ export function checkTrigger(
   rule: ITradingRule,
   currentDate: string,
   currentPrices: Record<string, number>,
-  costBasis: Record<string, number> = {}
+  costBasis: Record<string, number> = {},
+  rsiData: Map<string, Map<string, number>> = new Map()
 ): boolean {
   const checker = TRIGGER_CHECKERS[rule.triggerType];
   if (!checker) {
@@ -150,7 +187,7 @@ export function checkTrigger(
     return false;
   }
 
-  return checker(rule, currentDate, currentPrices, costBasis);
+  return checker(rule, currentDate, currentPrices, costBasis, rsiData);
 }
 
 // ============================================
@@ -385,6 +422,25 @@ export function validateTradingRule(rule: ITradingRule): { valid: boolean; error
       }
       if (!rule.triggerConfig.costBasisCondition.differenceType) {
         errors.push('Difference type is required for COST_BASIS trigger');
+      }
+    }
+  }
+
+  if (rule.triggerType === 'RSI') {
+    if (!rule.triggerConfig.rsiCondition) {
+      errors.push('RSI condition is required for RSI trigger');
+    } else {
+      if (!rule.triggerConfig.rsiCondition.symbol) {
+        errors.push('Symbol is required for RSI trigger');
+      }
+      if (!rule.triggerConfig.rsiCondition.operator) {
+        errors.push('Operator is required for RSI trigger');
+      }
+      if (rule.triggerConfig.rsiCondition.threshold < 0 || rule.triggerConfig.rsiCondition.threshold > 100) {
+        errors.push('RSI threshold must be between 0 and 100');
+      }
+      if (rule.triggerConfig.rsiCondition.period < 1) {
+        errors.push('RSI period must be at least 1');
       }
     }
   }

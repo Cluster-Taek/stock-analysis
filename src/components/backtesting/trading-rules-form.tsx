@@ -120,6 +120,29 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
       }
     }
 
+    if (editingRule.triggerType === 'RSI') {
+      if (!editingRule.triggerConfig.rsiCondition) {
+        alert({ variant: 'error', children: 'RSI 조건을 설정해주세요.' });
+        return;
+      }
+      if (!editingRule.triggerConfig.rsiCondition.symbol) {
+        alert({ variant: 'error', children: '대상 심볼을 입력해주세요.' });
+        return;
+      }
+      if (!editingRule.triggerConfig.rsiCondition.operator) {
+        alert({ variant: 'error', children: '조건을 선택해주세요.' });
+        return;
+      }
+      if (editingRule.triggerConfig.rsiCondition.threshold < 0 || editingRule.triggerConfig.rsiCondition.threshold > 100) {
+        alert({ variant: 'error', children: 'RSI 임계값은 0-100 사이여야 합니다.' });
+        return;
+      }
+      if (editingRule.triggerConfig.rsiCondition.period < 1) {
+        alert({ variant: 'error', children: 'RSI 기간은 1 이상이어야 합니다.' });
+        return;
+      }
+    }
+
     if (isAdding) {
       onChange([...tradingRules, editingRule]);
     } else {
@@ -434,6 +457,112 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
           </div>
         );
 
+      case 'RSI':
+        return (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                대상 심볼
+              </Label>
+              <SymbolSearchInput
+                value={editingRule.triggerConfig.rsiCondition?.symbol || ''}
+                onChange={(symbol) =>
+                  updateTriggerConfig({
+                    rsiCondition: {
+                      ...editingRule.triggerConfig.rsiCondition,
+                      symbol,
+                      period: editingRule.triggerConfig.rsiCondition?.period || 14,
+                      operator: editingRule.triggerConfig.rsiCondition?.operator || '<',
+                      threshold: editingRule.triggerConfig.rsiCondition?.threshold || 30,
+                    },
+                  })
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                RSI 기간
+              </Label>
+              <Input
+                type="number"
+                size="small"
+                min={1}
+                max={100}
+                value={editingRule.triggerConfig.rsiCondition?.period || 14}
+                onChange={(e) =>
+                  updateTriggerConfig({
+                    rsiCondition: {
+                      ...editingRule.triggerConfig.rsiCondition!,
+                      period: parseInt(e.target.value) || 14,
+                    },
+                  })
+                }
+                placeholder="14"
+              />
+              <div className="text-xs text-ui-fg-muted">
+                일반적으로 14일을 사용합니다
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                조건
+              </Label>
+              <MultiSelect
+                value={editingRule.triggerConfig.rsiCondition?.operator || ''}
+                onValueChange={(value) =>
+                  updateTriggerConfig({
+                    rsiCondition: {
+                      ...editingRule.triggerConfig.rsiCondition!,
+                      operator: value as '>' | '<' | '>=' | '<=',
+                    },
+                  })
+                }
+                searchable={false}
+                multiple={false}
+              >
+                <MultiSelect.Trigger>
+                  <MultiSelect.Value placeholder="조건을 선택해주세요" />
+                </MultiSelect.Trigger>
+                <MultiSelect.Content>
+                  {PRICE_OPERATORS.map((op) => (
+                    <MultiSelect.Item key={op} value={op}>
+                      {PRICE_OPERATOR_LABELS[op]}
+                    </MultiSelect.Item>
+                  ))}
+                </MultiSelect.Content>
+              </MultiSelect>
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                RSI 임계값 (0-100)
+              </Label>
+              <Input
+                type="number"
+                size="small"
+                min={0}
+                max={100}
+                step={0.1}
+                value={editingRule.triggerConfig.rsiCondition?.threshold || ''}
+                onChange={(e) =>
+                  updateTriggerConfig({
+                    rsiCondition: {
+                      ...editingRule.triggerConfig.rsiCondition!,
+                      threshold: parseFloat(e.target.value) || 0,
+                    },
+                  })
+                }
+                placeholder="30"
+              />
+              <div className="text-xs text-ui-fg-muted">
+                일반적으로 30 이하는 과매도, 70 이상은 과매수로 판단합니다
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -469,6 +598,14 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
           triggerText = `${symbol} 평균 매수가 대비 ${valueText}${PRICE_OPERATOR_LABELS[operator]}`;
         } else {
           triggerText = '평균 매수가 조건';
+        }
+        break;
+      case 'RSI':
+        if (rule.triggerConfig.rsiCondition) {
+          const { symbol, operator, threshold, period } = rule.triggerConfig.rsiCondition;
+          triggerText = `${symbol}의 RSI(${period})가 ${threshold}${PRICE_OPERATOR_LABELS[operator]}`;
+        } else {
+          triggerText = 'RSI 조건';
         }
         break;
     }
