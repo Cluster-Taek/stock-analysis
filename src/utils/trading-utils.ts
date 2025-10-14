@@ -49,7 +49,7 @@ function checkIntervalTrigger(rule: ITradingRule, currentDate: string): boolean 
 }
 
 /**
- * 가격 조건 기반 트리거 체크 (향후 구현)
+ * 가격 조건 기반 트리거 체크
  */
 function checkPriceTrigger(
   rule: ITradingRule,
@@ -312,8 +312,20 @@ export function validateTradingRule(rule: ITradingRule): { valid: boolean; error
     }
   }
 
-  if (rule.triggerType === 'PRICE' && !rule.triggerConfig.priceCondition) {
-    errors.push('Price condition is required for PRICE trigger');
+  if (rule.triggerType === 'PRICE') {
+    if (!rule.triggerConfig.priceCondition) {
+      errors.push('Price condition is required for PRICE trigger');
+    } else {
+      if (!rule.triggerConfig.priceCondition.symbol) {
+        errors.push('Symbol is required for PRICE trigger');
+      }
+      if (!rule.triggerConfig.priceCondition.operator) {
+        errors.push('Operator is required for PRICE trigger');
+      }
+      if (rule.triggerConfig.priceCondition.targetPrice <= 0) {
+        errors.push('Target price must be greater than 0 for PRICE trigger');
+      }
+    }
   }
 
   return {

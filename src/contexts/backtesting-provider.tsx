@@ -120,6 +120,10 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
             if (paramsWithConfig.tradingRules) {
               paramsWithConfig.tradingRules.forEach((rule) => {
                 allSymbolsToFetch.add(rule.symbol);
+                // PRICE 트리거의 경우 모니터링할 종목도 추가
+                if (rule.triggerType === 'PRICE' && rule.triggerConfig.priceCondition) {
+                  allSymbolsToFetch.add(rule.triggerConfig.priceCondition.symbol);
+                }
               });
             }
 

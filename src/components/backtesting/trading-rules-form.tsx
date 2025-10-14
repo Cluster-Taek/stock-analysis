@@ -8,6 +8,8 @@ import {
   DAY_OF_WEEK_LABELS,
   INTERVAL_TYPE_LABELS,
   INTERVAL_TYPES,
+  PRICE_OPERATOR_LABELS,
+  PRICE_OPERATORS,
   TRADING_ACTION_LABELS,
   TRADING_ACTIONS,
   TRIGGER_TYPE_LABELS,
@@ -80,6 +82,25 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
         !editingRule.triggerConfig.dayOfMonth
       ) {
         alert({ variant: 'error', children: '일자를 입력해주세요.' });
+        return;
+      }
+    }
+
+    if (editingRule.triggerType === 'PRICE') {
+      if (!editingRule.triggerConfig.priceCondition) {
+        alert({ variant: 'error', children: '가격 조건을 설정해주세요.' });
+        return;
+      }
+      if (!editingRule.triggerConfig.priceCondition.symbol) {
+        alert({ variant: 'error', children: '대상 심볼을 입력해주세요.' });
+        return;
+      }
+      if (!editingRule.triggerConfig.priceCondition.operator) {
+        alert({ variant: 'error', children: '조건을 선택해주세요.' });
+        return;
+      }
+      if (editingRule.triggerConfig.priceCondition.targetPrice <= 0) {
+        alert({ variant: 'error', children: '목표 가격을 입력해주세요.' });
         return;
       }
     }
@@ -212,7 +233,78 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
 
       case 'PRICE':
         return (
-          <div className="text-sm text-ui-fg-muted py-2">가격 조건 트리거는 향후 추가 예정입니다.</div>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                대상 심볼
+              </Label>
+              <SymbolSearchInput
+                value={editingRule.triggerConfig.priceCondition?.symbol || ''}
+                onChange={(symbol) =>
+                  updateTriggerConfig({
+                    priceCondition: {
+                      ...editingRule.triggerConfig.priceCondition,
+                      symbol,
+                      operator: editingRule.triggerConfig.priceCondition?.operator || '>',
+                      targetPrice: editingRule.triggerConfig.priceCondition?.targetPrice || 0,
+                    },
+                  })
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                조건
+              </Label>
+              <MultiSelect
+                value={editingRule.triggerConfig.priceCondition?.operator || ''}
+                onValueChange={(value) =>
+                  updateTriggerConfig({
+                    priceCondition: {
+                      ...editingRule.triggerConfig.priceCondition!,
+                      operator: value as '>' | '<' | '>=' | '<=',
+                    },
+                  })
+                }
+                searchable={false}
+                multiple={false}
+              >
+                <MultiSelect.Trigger>
+                  <MultiSelect.Value placeholder="조건을 선택해주세요" />
+                </MultiSelect.Trigger>
+                <MultiSelect.Content>
+                  {PRICE_OPERATORS.map((op) => (
+                    <MultiSelect.Item key={op} value={op}>
+                      {PRICE_OPERATOR_LABELS[op]}
+                    </MultiSelect.Item>
+                  ))}
+                </MultiSelect.Content>
+              </MultiSelect>
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                목표 가격 ($)
+              </Label>
+              <Input
+                type="number"
+                size="small"
+                min={0}
+                step={0.01}
+                value={editingRule.triggerConfig.priceCondition?.targetPrice || ''}
+                onChange={(e) =>
+                  updateTriggerConfig({
+                    priceCondition: {
+                      ...editingRule.triggerConfig.priceCondition!,
+                      targetPrice: parseFloat(e.target.value) || 0,
+                    },
+                  })
+                }
+                placeholder="목표 가격"
+              />
+            </div>
+          </div>
         );
 
       default:
@@ -236,7 +328,12 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
         }
         break;
       case 'PRICE':
-        triggerText = '가격 조건';
+        if (rule.triggerConfig.priceCondition) {
+          const { symbol, operator, targetPrice } = rule.triggerConfig.priceCondition;
+          triggerText = `${symbol}이 $${targetPrice.toLocaleString()}${PRICE_OPERATOR_LABELS[operator]}`;
+        } else {
+          triggerText = '가격 조건';
+        }
         break;
     }
 

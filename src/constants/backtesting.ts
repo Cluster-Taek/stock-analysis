@@ -44,3 +44,12 @@ export const DAY_OF_WEEK_LABELS: Record<number, string> = {
   5: '금요일',
   6: '토요일',
 };
+
+export const PRICE_OPERATORS = ['>', '<', '>=', '<='] as const;
+
+export const PRICE_OPERATOR_LABELS: Record<string, string> = {
+  '>': '~ 보다 높을 때',
+  '<': '~ 보다 낮을 때',
+  '>=': '~ 이상일 때',
+  '<=': '~ 이하일 때',
+};
