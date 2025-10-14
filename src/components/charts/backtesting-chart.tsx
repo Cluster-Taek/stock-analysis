@@ -55,23 +55,45 @@ export function BacktestingChart({
       const color = portfolioColors[index % portfolioColors.length];
       const lineDataset = createLineDataset(portfolio.portfolioName, portfolioValueData, color, false);
 
-      // 배당금이 있는 날짜의 포인트를 강조하기 위한 설정
+      // 배당금과 거래 내역이 있는 날짜의 포인트를 강조하기 위한 설정
       const pointBackgroundColors = sortedPortfolioData.map((item) => {
         const hasDividends = item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0;
-        return hasDividends ? '#22c55e' : color;
+        const hasBuyTrades = item.trades?.some((t) => t.action === 'BUY');
+        const hasSellTrades = item.trades?.some((t) => t.action === 'SELL');
+
+        if (hasBuyTrades) return '#22c55e'; // 초록색 (매수)
+        if (hasSellTrades) return '#ef4444'; // 빨간색 (매도)
+        if (hasDividends) return '#3b82f6'; // 파란색 (배당금)
+        return color;
       });
 
       const pointBorderColors = sortedPortfolioData.map((item) => {
         const hasDividends = item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0;
-        return hasDividends ? '#16a34a' : color;
+        const hasBuyTrades = item.trades?.some((t) => t.action === 'BUY');
+        const hasSellTrades = item.trades?.some((t) => t.action === 'SELL');
+
+        if (hasBuyTrades) return '#16a34a'; // 진한 초록 (매수)
+        if (hasSellTrades) return '#dc2626'; // 진한 빨강 (매도)
+        if (hasDividends) return '#2563eb'; // 진한 파랑 (배당금)
+        return color;
       });
 
       const pointRadius = sortedPortfolioData.map((item) => {
         const hasDividends = item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0;
-        return hasDividends ? 3 : 0;
+        const hasTrades = item.trades && item.trades.length > 0;
+        return hasDividends || hasTrades ? 4 : 0;
       });
 
-      // 배당금이 있는 날짜 디버깅
+      const pointStyle = sortedPortfolioData.map((item) => {
+        const hasBuyTrades = item.trades?.some((t) => t.action === 'BUY');
+        const hasSellTrades = item.trades?.some((t) => t.action === 'SELL');
+
+        if (hasBuyTrades) return 'triangle' as const; // 삼각형 (매수)
+        if (hasSellTrades) return 'rectRot' as const; // 역삼각형 (매도)
+        return 'circle' as const; // 원 (배당금)
+      });
+
+      // 배당금과 거래 내역이 있는 날짜 디버깅
       const dividendDates = sortedPortfolioData
         .filter((item) => item.dividendsReceived && Object.keys(item.dividendsReceived).length > 0)
         .map((item) => ({
@@ -79,8 +101,19 @@ export function BacktestingChart({
           dividends: item.dividendsReceived,
         }));
 
+      const tradeDates = sortedPortfolioData
+        .filter((item) => item.trades && item.trades.length > 0)
+        .map((item) => ({
+          date: item.date,
+          trades: item.trades,
+        }));
+
       if (dividendDates.length > 0) {
         console.log(`📊 ${portfolio.portfolioName} 차트에 표시될 배당금 날짜들:`, dividendDates);
+      }
+
+      if (tradeDates.length > 0) {
+        console.log(`📊 ${portfolio.portfolioName} 차트에 표시될 거래 날짜들:`, tradeDates);
       }
 
       // 포인트 스타일 오버라이드
@@ -90,6 +123,7 @@ export function BacktestingChart({
         pointBorderColor: pointBorderColors,
         pointRadius: pointRadius,
         pointHoverRadius: pointRadius.map((r) => r + 2),
+        pointStyle: pointStyle,
       };
 
       datasets.push(enhancedDataset);
@@ -160,7 +194,30 @@ export function BacktestingChart({
 
               const labels = [];
 
-              // Add dividend information first
+              // Add trade information first
+              if (snapshot.trades && snapshot.trades.length > 0) {
+                labels.push('💰 거래 내역:');
+                snapshot.trades.forEach((trade) => {
+                  const actionLabel = trade.action === 'BUY' ? '매수' : '매도';
+                  const actionSymbol = trade.action === 'BUY' ? '🔼' : '🔽';
+                  const formattedAmount = new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                  }).format(trade.totalAmount);
+                  const formattedFee = new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                  }).format(trade.fee);
+                  labels.push(`  ${actionSymbol} ${actionLabel} ${trade.symbol}`);
+                  labels.push(`    수량: ${trade.shares.toFixed(4)}주`);
+                  labels.push(`    가격: $${trade.price.toFixed(2)}`);
+                  labels.push(`    금액: ${formattedAmount}`);
+                  labels.push(`    수수료: ${formattedFee}`);
+                });
+                labels.push(''); // Add empty line for spacing
+              }
+
+              // Add dividend information
               if (snapshot.dividendsReceived) {
                 const dividendEntries = Object.entries(snapshot.dividendsReceived);
                 if (dividendEntries.length > 0) {

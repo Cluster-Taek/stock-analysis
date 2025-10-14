@@ -2,6 +2,7 @@
 
 import { BacktestingChart } from '../charts/backtesting-chart';
 import MultiSelect from '../common/multi-select';
+import { BACKTESTING_CONSTANTS } from '@/constants/backtesting';
 import { useBacktesting } from '@/contexts/backtesting-provider';
 import { IBacktestingConfig } from '@/types/investor';
 import { Button, Container, Input, Label, Text } from '@medusajs/ui';
@@ -14,6 +15,8 @@ const BacktestingResult = () => {
     startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
     interval: '1d',
+    buyFeeRate: BACKTESTING_CONSTANTS.DEFAULT_BUY_FEE_RATE,
+    sellFeeRate: BACKTESTING_CONSTANTS.DEFAULT_SELL_FEE_RATE,
   });
 
   const handleStartBacktesting = () => {
@@ -90,6 +93,41 @@ const BacktestingResult = () => {
                     <MultiSelect.Item value="1mo">월별</MultiSelect.Item>
                   </MultiSelect.Content>
                 </MultiSelect>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="space-y-2">
+                <Label size="small" weight="plus">
+                  매수 수수료 (%)
+                </Label>
+                <Input
+                  type="number"
+                  size="small"
+                  min={0}
+                  step={0.01}
+                  value={backtestingConfig.buyFeeRate}
+                  onChange={(e) =>
+                    setBacktestingConfig((prev) => ({ ...prev, buyFeeRate: parseFloat(e.target.value) || 0 }))
+                  }
+                  placeholder="0.1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label size="small" weight="plus">
+                  매도 수수료 (%)
+                </Label>
+                <Input
+                  type="number"
+                  size="small"
+                  min={0}
+                  step={0.01}
+                  value={backtestingConfig.sellFeeRate}
+                  onChange={(e) =>
+                    setBacktestingConfig((prev) => ({ ...prev, sellFeeRate: parseFloat(e.target.value) || 0 }))
+                  }
+                  placeholder="0.1"
+                />
               </div>
             </div>
           </div>

@@ -107,7 +107,7 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
             // 백테스팅 설정을 포트폴리오 데이터와 합치기
             const paramsWithConfig = { ...params, ...config };
 
-            // 1. 포트폴리오의 모든 종목 및 재투자 대상 종목 수집
+            // 1. 포트폴리오의 모든 종목 및 재투자 대상 종목, 거래 규칙 종목 수집
             const allSymbolsToFetch = new Set<string>();
             paramsWithConfig.portfolio.forEach((p) => {
               allSymbolsToFetch.add(p.symbol);
@@ -115,6 +115,14 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
                 allSymbolsToFetch.add(p.reinvestmentTarget);
               }
             });
+
+            // 거래 규칙에서 사용하는 종목들도 추가
+            if (paramsWithConfig.tradingRules) {
+              paramsWithConfig.tradingRules.forEach((rule) => {
+                allSymbolsToFetch.add(rule.symbol);
+              });
+            }
+
             const uniqueSymbols = Array.from(allSymbolsToFetch);
 
             // 2. 데이터 패칭
@@ -139,29 +147,46 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
 
             // 모든 포트폴리오 종목의 데이터가 있는 실제 시작일 찾기
             let actualStartDate: string | null = null;
-            for (const date of sortedDates) {
-              const dailyData = timelineData.get(date);
-              if (dailyData) {
-                const allSymbolsHaveData = paramsWithConfig.portfolio.every(
-                  (item) => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.close != null
-                );
-                if (allSymbolsHaveData) {
-                  actualStartDate = date;
-                  break;
+
+            if (paramsWithConfig.portfolio.length > 0) {
+              // 포트폴리오가 있는 경우: 모든 종목의 데이터가 있는 날짜 찾기
+              for (const date of sortedDates) {
+                const dailyData = timelineData.get(date);
+                if (dailyData) {
+                  const allSymbolsHaveData = paramsWithConfig.portfolio.every(
+                    (item) => dailyData.has(item.symbol) && dailyData.get(item.symbol)?.close != null
+                  );
+                  if (allSymbolsHaveData) {
+                    actualStartDate = date;
+                    break;
+                  }
                 }
               }
-            }
 
-            if (!actualStartDate) {
-              throw new BacktestingError(
-                '선택된 기간 내에 모든 포트폴리오 종목의 유효한 시작 가격을 찾을 수 없습니다.',
-                BACKTESTING_ERROR_CODES.INVALID_START_DATE,
-                { 
-                  requestedStartDate: config.startDate,
-                  availableDates: sortedDates.slice(0, 5),
-                  portfolioSymbols: paramsWithConfig.portfolio.map(p => p.symbol)
-                }
-              );
+              if (!actualStartDate) {
+                throw new BacktestingError(
+                  '선택된 기간 내에 모든 포트폴리오 종목의 유효한 시작 가격을 찾을 수 없습니다.',
+                  BACKTESTING_ERROR_CODES.INVALID_START_DATE,
+                  {
+                    requestedStartDate: config.startDate,
+                    availableDates: sortedDates.slice(0, 5),
+                    portfolioSymbols: paramsWithConfig.portfolio.map(p => p.symbol)
+                  }
+                );
+              }
+            } else {
+              // 포트폴리오가 없는 경우 (현금 + 거래 규칙만): 첫 데이터 날짜 사용
+              actualStartDate = sortedDates[0];
+              if (!actualStartDate) {
+                throw new BacktestingError(
+                  '선택된 기간에 유효한 데이터가 없습니다.',
+                  BACKTESTING_ERROR_CODES.NO_DATA_AVAILABLE,
+                  {
+                    requestedStartDate: config.startDate,
+                    requestedEndDate: config.endDate
+                  }
+                );
+              }
             }
 
             const startIndex = sortedDates.indexOf(actualStartDate);
@@ -174,7 +199,9 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
               payableDividendMapBySymbolAndDate,
               uniqueSymbols,
               actualStartDate,
-              simulationDates
+              simulationDates,
+              config.buyFeeRate,
+              config.sellFeeRate
             );
 
             results.push({

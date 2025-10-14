@@ -24,6 +24,8 @@ export const getPortfolioStrategyLabel = (strategy: PortfolioStrategy) => {
 export interface IBacktestingParams extends Record<string, any> {
   name: string;
   portfolio: IPortfolioItem[];
+  tradingRules?: ITradingRule[];
+  initialCash?: number; // 거래 규칙에서 사용할 초기 현금
   id?: string;
 }
 
@@ -31,6 +33,8 @@ export interface IBacktestingConfig {
   startDate: ISODateString;
   endDate: ISODateString;
   interval: '1d' | '1wk' | '1mo';
+  buyFeeRate?: number; // 매수 수수료율 (%, 기본값: 0.1)
+  sellFeeRate?: number; // 매도 수수료율 (%, 기본값: 0.1)
 }
 
 export interface IBacktestingSnapshot {
@@ -46,6 +50,7 @@ export interface IBacktestingSnapshot {
   holdings: Record<string, number>; // 종목별 보유 주식 수 (symbol -> shares)
   currentPrices?: Record<string, number>; // 종목별 현재가 (symbol -> price)
   dividendsReceived?: Record<string, number>; // 종목별 당일 받은 배당금 (symbol -> dividend amount)
+  trades?: ITradeExecution[]; // 당일 실행된 거래 내역
 }
 
 export interface IBacktestingResult {
@@ -84,4 +89,48 @@ export interface HistoricalData {
 export interface DividendResponse {
   symbol: string;
   data: DividendData[];
+}
+
+// Trading Rule Types
+export type TriggerType = 'DATE' | 'INTERVAL' | 'PRICE';
+export type TradingAction = 'BUY' | 'SELL';
+export type AmountType = 'FIXED' | 'PERCENTAGE';
+export type IntervalType = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+
+export interface ITriggerConfig {
+  // DATE trigger
+  date?: ISODateString;
+
+  // INTERVAL trigger
+  intervalType?: IntervalType;
+  dayOfWeek?: number; // 0-6 (일요일=0)
+  dayOfMonth?: number; // 1-31
+
+  // PRICE trigger (향후 확장)
+  priceCondition?: {
+    symbol: string;
+    operator: '>' | '<' | '>=' | '<=';
+    targetPrice: number;
+  };
+}
+
+export interface ITradingRule {
+  id: string;
+  triggerType: TriggerType;
+  triggerConfig: ITriggerConfig;
+  action: TradingAction;
+  symbol: string;
+  amountType: AmountType;
+  amount: number; // 고정 금액($) 또는 비율(%)
+}
+
+export interface ITradeExecution {
+  date: ISODateString;
+  ruleId: string;
+  action: TradingAction;
+  symbol: string;
+  shares: number;
+  price: number;
+  totalAmount: number;
+  fee: number;
 }

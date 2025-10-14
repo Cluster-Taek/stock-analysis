@@ -1,7 +1,8 @@
 import { parseValidDate } from './utils';
 import { isYieldmaxSymbol } from './yieldmax-utils';
+import { checkTrigger, executeTrade, validateTradingRule } from './trading-utils';
 import { BACKTESTING_CONSTANTS } from '@/constants/backtesting';
-import { DividendData, DividendResponse, HistoricalData, IBacktestingParams, IPendingDividend } from '@/types/investor';
+import { DividendData, DividendResponse, HistoricalData, IBacktestingParams, IPendingDividend, ITradeExecution } from '@/types/investor';
 import { ApiResponse, HistoricalDataResponse } from '@/types/yahoo-finance';
 import { DistributionHistoryItem } from '@/types/yieldmax';
 
@@ -196,33 +197,53 @@ export function runBacktestingSimulation(
   payableDividendMapBySymbolAndDate: Map<string, Map<string, number>>,
   uniqueSymbols: string[],
   actualStartDate: string,
-  simulationDates: string[]
+  simulationDates: string[],
+  buyFeeRate: number = BACKTESTING_CONSTANTS.DEFAULT_BUY_FEE_RATE,
+  sellFeeRate: number = BACKTESTING_CONSTANTS.DEFAULT_SELL_FEE_RATE
 ) {
   // 배당금 발생 횟수 추적
   const dividendOccurrences: Record<string, number> = {};
   uniqueSymbols.forEach(symbol => {
     dividendOccurrences[symbol] = 0;
   });
-  const initialCapital = params.portfolio.reduce((sum, item) => sum + item.amount, 0);
+
+  // 거래 규칙 가져오기 및 검증
+  const tradingRules = params.tradingRules || [];
+  if (tradingRules.length > 0) {
+    console.log(`📋 거래 규칙 ${tradingRules.length}개 로드됨`);
+    tradingRules.forEach((rule, index) => {
+      const validation = validateTradingRule(rule);
+      if (!validation.valid) {
+        console.warn(`⚠️ 거래 규칙 ${index + 1} 검증 실패:`, validation.errors);
+      }
+    });
+  }
+
+  const portfolioTotal = params.portfolio.reduce((sum, item) => sum + item.amount, 0);
+  const initialCashAmount = params.initialCash || 0;
+  const initialCapital = portfolioTotal + initialCashAmount;
   const portfolioState: Record<string, { shares: number }> = {};
   const lastKnownPrices: Record<string, number> = {};
   const pendingDividends: IPendingDividend[] = [];
-  let cash = 0;
+  let cash = initialCashAmount;
 
   // Initialize portfolio state
   uniqueSymbols.forEach((symbol) => {
     portfolioState[symbol] = { shares: 0 };
   });
 
-  const initialPrices = timelineData.get(actualStartDate)!;
-  for (const item of params.portfolio) {
-    const priceData = initialPrices.get(item.symbol);
-    if (!priceData?.close) {
-      throw new Error(`${item.symbol}의 시작일(${actualStartDate}) 가격을 찾을 수 없습니다.`);
+  // 포트폴리오가 있는 경우만 초기 매수 진행
+  if (params.portfolio.length > 0) {
+    const initialPrices = timelineData.get(actualStartDate)!;
+    for (const item of params.portfolio) {
+      const priceData = initialPrices.get(item.symbol);
+      if (!priceData?.close) {
+        throw new Error(`${item.symbol}의 시작일(${actualStartDate}) 가격을 찾을 수 없습니다.`);
+      }
+      portfolioState[item.symbol] = {
+        shares: (portfolioState[item.symbol]?.shares || 0) + item.amount / priceData.close,
+      };
     }
-    portfolioState[item.symbol] = {
-      shares: (portfolioState[item.symbol]?.shares || 0) + item.amount / priceData.close,
-    };
   }
 
   // Initialize last known prices
@@ -305,6 +326,66 @@ export function runBacktestingSimulation(
     pendingDividends.length = 0;
     pendingDividends.push(...remainingDividends);
 
+    // Process trading rules
+    const trades: ITradeExecution[] = [];
+    if (tradingRules.length > 0) {
+      for (const rule of tradingRules) {
+        // Check if trigger conditions are met
+        const triggerMet = checkTrigger(rule, date, lastKnownPrices);
+
+        if (triggerMet) {
+          console.log(`🎯 [${date}] 거래 규칙 트리거: ${rule.action} ${rule.symbol}`);
+
+          // Ensure symbol exists in portfolio state
+          if (!portfolioState[rule.symbol]) {
+            portfolioState[rule.symbol] = { shares: 0 };
+          }
+
+          const currentPrice = dailyData.get(rule.symbol)?.close || lastKnownPrices[rule.symbol];
+          if (!currentPrice) {
+            console.warn(`⚠️ [${date}] ${rule.symbol}의 가격 정보 없음, 거래 건너뜀`);
+            continue;
+          }
+
+          const feeRate = rule.action === 'BUY' ? buyFeeRate : sellFeeRate;
+
+          const tradeResult = executeTrade(rule, {
+            currentDate: date,
+            currentPrice,
+            cash,
+            shares: portfolioState[rule.symbol].shares,
+            feeRate,
+          });
+
+          if (tradeResult.success && tradeResult.execution) {
+            // Update portfolio state
+            cash = tradeResult.newCash;
+            portfolioState[rule.symbol].shares = tradeResult.newShares;
+            trades.push(tradeResult.execution);
+
+            console.log(`✅ [${date}] ${rule.action} 실행 완료:`);
+            console.log(`  - 심볼: ${rule.symbol}`);
+            console.log(`  - 주식 수: ${tradeResult.execution.shares.toFixed(4)}주`);
+            console.log(`  - 가격: $${currentPrice.toFixed(2)}`);
+            console.log(`  - 거래 금액: $${tradeResult.execution.totalAmount.toFixed(2)}`);
+            console.log(`  - 수수료: $${tradeResult.execution.fee.toFixed(2)}`);
+            console.log(`  - 새 현금 잔고: $${cash.toFixed(2)}`);
+            console.log(`  - 새 보유 주식: ${portfolioState[rule.symbol].shares.toFixed(4)}주`);
+          } else {
+            console.warn(`❌ [${date}] ${rule.action} 실행 실패: ${tradeResult.errorMessage}`);
+          }
+        }
+      }
+    }
+
+    // Recalculate market value after trades
+    marketValue = 0;
+    for (const symbol of uniqueSymbols) {
+      const price = dailyData.get(symbol)?.close || lastKnownPrices[symbol];
+      lastKnownPrices[symbol] = price;
+      marketValue += (portfolioState[symbol]?.shares || 0) * price;
+    }
+
     const capital = marketValue + cash;
     const profit = capital - initialCapital;
     const profitRate = initialCapital > 0 ? profit / initialCapital : 0;
@@ -341,6 +422,7 @@ export function runBacktestingSimulation(
       holdings: currentHoldings,
       currentPrices,
       dividendsReceived: Object.keys(dividendsReceived).length > 0 ? dividendsReceived : undefined,
+      trades: trades.length > 0 ? trades : undefined,
     });
   }
 

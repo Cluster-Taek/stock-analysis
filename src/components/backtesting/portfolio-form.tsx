@@ -1,9 +1,10 @@
 import MultiSelect from '../common/multi-select';
+import TradingRulesForm from './trading-rules-form';
 import { ControlledInput } from '@/components/common/controlled-input';
 import { SymbolSearchInput } from '@/components/common/symbol-search-input';
 import { YIELDMAX_SYMBOLS } from '@/constants/yieldmax-constants';
 import { useAlert } from '@/contexts/alert-provider';
-import { IPortfolioItem, PORTFOLIO_STATEGYS, PortfolioStrategy, getPortfolioStrategyLabel } from '@/types/investor';
+import { IPortfolioItem, ITradingRule, PORTFOLIO_STATEGYS, PortfolioStrategy, getPortfolioStrategyLabel } from '@/types/investor';
 import { isYieldmaxSymbol } from '@/utils/yieldmax-utils';
 import { Button, Drawer, Input, Label } from '@medusajs/ui';
 import { useEffect, useState } from 'react';
@@ -12,6 +13,8 @@ import { FormProvider, useForm } from 'react-hook-form';
 interface IPortfolioFormValue {
   name: string;
   portfolio: IPortfolioItem[];
+  tradingRules?: ITradingRule[];
+  initialCash?: number;
 }
 
 interface IPortfolioFormProps {
@@ -31,19 +34,26 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
 }) => {
   const { alert } = useAlert();
   const [portfolioItems, setPortfolioItems] = useState<IPortfolioItem[]>([]);
+  const [tradingRules, setTradingRules] = useState<ITradingRule[]>([]);
 
   const form = useForm<IPortfolioFormValue>({
     defaultValues: {
       name: '',
       portfolio: [],
+      tradingRules: [],
+      initialCash: 0,
     },
   });
 
   const handleSubmit = form.handleSubmit(async (value) => {
-    if (portfolioItems.length === 0) {
+    const hasPortfolio = portfolioItems.length > 0;
+    const hasInitialCash = (value.initialCash || 0) > 0;
+    const hasTradingRules = tradingRules.length > 0;
+
+    if (!hasPortfolio && !hasInitialCash && !hasTradingRules) {
       alert({
         variant: 'error',
-        children: '최소 하나의 포트폴리오 아이템을 추가해주세요.',
+        children: '포트폴리오, 초기 현금, 거래 규칙 중 최소 하나는 설정해야 합니다.',
       });
       return;
     }
@@ -51,6 +61,8 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
     const submitData = {
       ...value,
       portfolio: portfolioItems,
+      tradingRules: tradingRules,
+      initialCash: value.initialCash || 0,
     };
 
     onSubmit(submitData);
@@ -110,13 +122,19 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
       if (initialData.portfolio) {
         setPortfolioItems(initialData.portfolio);
       }
+      if (initialData.tradingRules) {
+        setTradingRules(initialData.tradingRules);
+      }
     } else {
       // 새 포트폴리오 추가시 폼 초기화
       form.reset({
         name: '',
         portfolio: [],
+        tradingRules: [],
+        initialCash: 0,
       });
       setPortfolioItems([]);
+      setTradingRules([]);
     }
   }, [initialData, form]);
 
@@ -143,8 +161,22 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                   />
                 </div>
 
-                {/* 자동 계산된 초기 자본금 표시 */}
-                {portfolioItems.length > 0 && (
+                {/* 초기 현금 */}
+                <div className="flex w-full gap-4">
+                  <ControlledInput<IPortfolioFormValue>
+                    form={form}
+                    label="초기 현금 ($)"
+                    name="initialCash"
+                    type="number"
+                    placeholder="거래 규칙에서 사용할 초기 현금"
+                    rules={{
+                      min: { value: 0, message: '초기 현금은 0 이상이어야 합니다' }
+                    }}
+                  />
+                </div>
+
+                {/* 자동 계산된 총 투자금액 표시 */}
+                {(portfolioItems.length > 0 || form.watch('initialCash')) && (
                   <div className="flex w-full gap-4">
                     <div className="flex flex-col w-full space-y-2">
                       <div className="flex items-center gap-x-1">
@@ -154,8 +186,12 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                       </div>
                       <div className="px-3 py-2 bg-ui-bg-subtle border border-ui-border-base rounded-md">
                         <span className="text-ui-fg-base font-medium">
-                          ${portfolioItems.reduce((total, item) => total + item.amount, 0).toLocaleString()}
+                          ${(portfolioItems.reduce((total, item) => total + item.amount, 0) + (form.watch('initialCash') || 0)).toLocaleString()}
                         </span>
+                      </div>
+                      <div className="text-xs text-ui-fg-muted">
+                        포트폴리오: ${portfolioItems.reduce((total, item) => total + item.amount, 0).toLocaleString()} +
+                        초기 현금: ${(form.watch('initialCash') || 0).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -263,6 +299,9 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                     <div className="text-center py-8 text-gray-500">포트폴리오에 추가할 종목을 선택해주세요</div>
                   )}
                 </div>
+
+                {/* 거래 규칙 */}
+                <TradingRulesForm tradingRules={tradingRules} onChange={setTradingRules} />
               </div>
             </Drawer.Body>
 
