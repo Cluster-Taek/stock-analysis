@@ -271,8 +271,8 @@ export function runBacktestingSimulation(
     });
   }
 
-  const portfolioTotal = params.portfolio.reduce((sum, item) => sum + item.amount, 0);
-  const initialCashAmount = params.initialCash || 0;
+  const portfolioTotal = params.portfolio.reduce((sum, item) => sum + Number(item.amount), 0);
+  const initialCashAmount = Number(params.initialCash) || 0;
   const initialCapital = portfolioTotal + initialCashAmount;
   const portfolioState: Record<string, { shares: number; costBasis: number }> = {};
   const lastKnownPrices: Record<string, number> = {};
@@ -292,7 +292,7 @@ export function runBacktestingSimulation(
       if (!priceData?.close) {
         throw new Error(`${item.symbol}의 시작일(${actualStartDate}) 가격을 찾을 수 없습니다.`);
       }
-      const sharesToBuy = item.amount / priceData.close;
+      const sharesToBuy = Number(item.amount) / priceData.close;
       portfolioState[item.symbol] = {
         shares: (portfolioState[item.symbol]?.shares || 0) + sharesToBuy,
         costBasis: priceData.close, // 초기 매수가 기록
