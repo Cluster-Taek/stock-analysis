@@ -186,12 +186,12 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
                       </div>
                       <div className="px-3 py-2 bg-ui-bg-subtle border border-ui-border-base rounded-md">
                         <span className="text-ui-fg-base font-medium">
-                          ${(portfolioItems.reduce((total, item) => total + item.amount, 0) + (form.watch('initialCash') || 0)).toLocaleString()}
+                          ${(portfolioItems.reduce((total, item) => total + Number(item.amount), 0) + Number(form.watch('initialCash') || 0)).toLocaleString()}
                         </span>
                       </div>
                       <div className="text-xs text-ui-fg-muted">
-                        포트폴리오: ${portfolioItems.reduce((total, item) => total + item.amount, 0).toLocaleString()} +
-                        초기 현금: ${(form.watch('initialCash') || 0).toLocaleString()}
+                        포트폴리오: ${portfolioItems.reduce((total, item) => total + Number(item.amount), 0).toLocaleString()} +
+                        초기 현금: ${Number(form.watch('initialCash') || 0).toLocaleString()}
                       </div>
                     </div>
                   </div>

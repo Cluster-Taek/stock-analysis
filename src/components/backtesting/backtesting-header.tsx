@@ -143,8 +143,8 @@ const BacktestingHeader = () => {
                             <Text size="small" weight="plus" leading="compact">
                               $
                               {(
-                                (portfolio.portfolio?.reduce((total, item) => total + item.amount, 0) || 0) +
-                                (portfolio.initialCash || 0)
+                                (portfolio.portfolio?.reduce((total, item) => total + Number(item.amount), 0) || 0) +
+                                Number(portfolio.initialCash || 0)
                               ).toLocaleString()}
                             </Text>
                           </div>
@@ -164,7 +164,7 @@ const BacktestingHeader = () => {
                               초기 현금
                             </Text>
                             <Text size="small" weight="plus" leading="compact">
-                              ${(portfolio.initialCash || 0).toLocaleString()}
+                              ${Number(portfolio.initialCash || 0).toLocaleString()}
                             </Text>
                           </div>
                           <div className="rounded-rounded bg-ui-bg-subtle px-3 py-2 text-center">
