@@ -82,6 +82,7 @@ export const defaultChartOptions: ChartOptions<'line'> = {
         label: (context: TooltipItem<'line'>) => {
           const label = context.dataset.label || '';
           const value = context.parsed.y;
+          if (value === null) return label;
           return `${label}: $${value.toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
