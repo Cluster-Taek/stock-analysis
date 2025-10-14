@@ -493,8 +493,10 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
                 onChange={(e) =>
                   updateTriggerConfig({
                     rsiCondition: {
-                      ...editingRule.triggerConfig.rsiCondition!,
+                      symbol: editingRule.triggerConfig.rsiCondition?.symbol || '',
                       period: parseInt(e.target.value) || 14,
+                      operator: editingRule.triggerConfig.rsiCondition?.operator || '<',
+                      threshold: editingRule.triggerConfig.rsiCondition?.threshold || 30,
                     },
                   })
                 }
@@ -514,8 +516,10 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
                 onValueChange={(value) =>
                   updateTriggerConfig({
                     rsiCondition: {
-                      ...editingRule.triggerConfig.rsiCondition!,
+                      symbol: editingRule.triggerConfig.rsiCondition?.symbol || '',
+                      period: editingRule.triggerConfig.rsiCondition?.period || 14,
                       operator: value as '>' | '<' | '>=' | '<=',
+                      threshold: editingRule.triggerConfig.rsiCondition?.threshold || 30,
                     },
                   })
                 }
@@ -549,7 +553,9 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
                 onChange={(e) =>
                   updateTriggerConfig({
                     rsiCondition: {
-                      ...editingRule.triggerConfig.rsiCondition!,
+                      symbol: editingRule.triggerConfig.rsiCondition?.symbol || '',
+                      period: editingRule.triggerConfig.rsiCondition?.period || 14,
+                      operator: editingRule.triggerConfig.rsiCondition?.operator || '<',
                       threshold: parseFloat(e.target.value) || 0,
                     },
                   })

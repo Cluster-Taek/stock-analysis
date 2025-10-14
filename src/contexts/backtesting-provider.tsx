@@ -124,6 +124,14 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
                 if (rule.triggerType === 'PRICE' && rule.triggerConfig.priceCondition) {
                   allSymbolsToFetch.add(rule.triggerConfig.priceCondition.symbol);
                 }
+                // COST_BASIS 트리거의 경우 모니터링할 종목도 추가
+                if (rule.triggerType === 'COST_BASIS' && rule.triggerConfig.costBasisCondition) {
+                  allSymbolsToFetch.add(rule.triggerConfig.costBasisCondition.symbol);
+                }
+                // RSI 트리거의 경우 모니터링할 종목도 추가
+                if (rule.triggerType === 'RSI' && rule.triggerConfig.rsiCondition) {
+                  allSymbolsToFetch.add(rule.triggerConfig.rsiCondition.symbol);
+                }
               });
             }
 
