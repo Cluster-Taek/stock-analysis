@@ -67,12 +67,15 @@ export const defaultChartOptions: ChartOptions<'line'> = {
       callbacks: {
         title: (context: TooltipItem<'line'>[]) => {
           if (context.length > 0) {
-            const date = new Date(context[0].parsed.x);
-            return date.toLocaleDateString('ko-KR', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            });
+            const xValue = context[0].parsed.x;
+            if (xValue !== null) {
+              const date = new Date(xValue);
+              return date.toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              });
+            }
           }
           return '';
         },
