@@ -3,22 +3,22 @@
 import MultiSelect from '../common/multi-select';
 import { SymbolSearchInput } from '@/components/common/symbol-search-input';
 import {
-  AMOUNT_TYPE_LABELS,
   AMOUNT_TYPES,
+  AMOUNT_TYPE_LABELS,
   DAY_OF_WEEK_LABELS,
-  DIFFERENCE_TYPE_LABELS,
   DIFFERENCE_TYPES,
-  INTERVAL_TYPE_LABELS,
+  DIFFERENCE_TYPE_LABELS,
   INTERVAL_TYPES,
-  PRICE_OPERATOR_LABELS,
+  INTERVAL_TYPE_LABELS,
   PRICE_OPERATORS,
-  TRADING_ACTION_LABELS,
+  PRICE_OPERATOR_LABELS,
   TRADING_ACTIONS,
-  TRIGGER_TYPE_LABELS,
+  TRADING_ACTION_LABELS,
   TRIGGER_TYPES,
+  TRIGGER_TYPE_LABELS,
 } from '@/constants/backtesting';
 import { useAlert } from '@/contexts/alert-provider';
-import { AmountType, DifferenceType, IntervalType, ITradingRule, TradingAction, TriggerType } from '@/types/investor';
+import { AmountType, DifferenceType, ITradingRule, IntervalType, TradingAction, TriggerType } from '@/types/investor';
 import { Button, Input, Label } from '@medusajs/ui';
 import { useState } from 'react';
 
@@ -72,17 +72,11 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
         alert({ variant: 'error', children: '주기를 선택해주세요.' });
         return;
       }
-      if (
-        editingRule.triggerConfig.intervalType === 'WEEKLY' &&
-        editingRule.triggerConfig.dayOfWeek === undefined
-      ) {
+      if (editingRule.triggerConfig.intervalType === 'WEEKLY' && editingRule.triggerConfig.dayOfWeek === undefined) {
         alert({ variant: 'error', children: '요일을 선택해주세요.' });
         return;
       }
-      if (
-        editingRule.triggerConfig.intervalType === 'MONTHLY' &&
-        !editingRule.triggerConfig.dayOfMonth
-      ) {
+      if (editingRule.triggerConfig.intervalType === 'MONTHLY' && !editingRule.triggerConfig.dayOfMonth) {
         alert({ variant: 'error', children: '일자를 입력해주세요.' });
         return;
       }
@@ -215,7 +209,7 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
                 </Label>
                 <MultiSelect
                   value={editingRule.triggerConfig.dayOfWeek?.toString() || ''}
-                  onValueChange={(value) => updateTriggerConfig({ dayOfWeek: parseInt(value) })}
+                  onValueChange={(value) => updateTriggerConfig({ dayOfWeek: parseInt(value as string) })}
                   searchable={false}
                   multiple={false}
                 >
@@ -413,7 +407,9 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
 
             <div className="space-y-1">
               <Label size="small" weight="plus">
-                {editingRule.triggerConfig.costBasisCondition?.differenceType === 'PERCENTAGE' ? '차이 비율 (%)' : '차이 금액 ($)'}
+                {editingRule.triggerConfig.costBasisCondition?.differenceType === 'PERCENTAGE'
+                  ? '차이 비율 (%)'
+                  : '차이 금액 ($)'}
               </Label>
               <Input
                 type="number"
@@ -428,7 +424,11 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
                     },
                   })
                 }
-                placeholder={editingRule.triggerConfig.costBasisCondition?.differenceType === 'PERCENTAGE' ? '예: 10 (10%)' : '예: 5 ($5)'}
+                placeholder={
+                  editingRule.triggerConfig.costBasisCondition?.differenceType === 'PERCENTAGE'
+                    ? '예: 10 (10%)'
+                    : '예: 5 ($5)'
+                }
               />
             </div>
           </div>
@@ -474,8 +474,7 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
     }
 
     const actionText = TRADING_ACTION_LABELS[rule.action];
-    const amountText =
-      rule.amountType === 'FIXED' ? `$${rule.amount.toLocaleString()}` : `${rule.amount}%`;
+    const amountText = rule.amountType === 'FIXED' ? `$${rule.amount.toLocaleString()}` : `${rule.amount}%`;
 
     return `${triggerText} - ${actionText} ${rule.symbol} ${amountText}`;
   };
@@ -582,10 +581,7 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
             <Label size="small" weight="plus">
               종목 심볼
             </Label>
-            <SymbolSearchInput
-              value={editingRule.symbol}
-              onChange={(symbol) => updateEditingRule({ symbol })}
-            />
+            <SymbolSearchInput value={editingRule.symbol} onChange={(symbol) => updateEditingRule({ symbol })} />
           </div>
 
           {/* Amount Type & Amount */}
