@@ -6,6 +6,8 @@ import {
   AMOUNT_TYPE_LABELS,
   AMOUNT_TYPES,
   DAY_OF_WEEK_LABELS,
+  DIFFERENCE_TYPE_LABELS,
+  DIFFERENCE_TYPES,
   INTERVAL_TYPE_LABELS,
   INTERVAL_TYPES,
   PRICE_OPERATOR_LABELS,
@@ -16,7 +18,7 @@ import {
   TRIGGER_TYPES,
 } from '@/constants/backtesting';
 import { useAlert } from '@/contexts/alert-provider';
-import { AmountType, IntervalType, ITradingRule, TradingAction, TriggerType } from '@/types/investor';
+import { AmountType, DifferenceType, IntervalType, ITradingRule, TradingAction, TriggerType } from '@/types/investor';
 import { Button, Input, Label } from '@medusajs/ui';
 import { useState } from 'react';
 
@@ -101,6 +103,25 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
       }
       if (editingRule.triggerConfig.priceCondition.targetPrice <= 0) {
         alert({ variant: 'error', children: '목표 가격을 입력해주세요.' });
+        return;
+      }
+    }
+
+    if (editingRule.triggerType === 'COST_BASIS') {
+      if (!editingRule.triggerConfig.costBasisCondition) {
+        alert({ variant: 'error', children: '평균 매수가 조건을 설정해주세요.' });
+        return;
+      }
+      if (!editingRule.triggerConfig.costBasisCondition.symbol) {
+        alert({ variant: 'error', children: '대상 심볼을 입력해주세요.' });
+        return;
+      }
+      if (!editingRule.triggerConfig.costBasisCondition.operator) {
+        alert({ variant: 'error', children: '조건을 선택해주세요.' });
+        return;
+      }
+      if (!editingRule.triggerConfig.costBasisCondition.differenceType) {
+        alert({ variant: 'error', children: '차이 타입을 선택해주세요.' });
         return;
       }
     }
@@ -307,6 +328,112 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
           </div>
         );
 
+      case 'COST_BASIS':
+        return (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                대상 심볼
+              </Label>
+              <SymbolSearchInput
+                value={editingRule.triggerConfig.costBasisCondition?.symbol || ''}
+                onChange={(symbol) =>
+                  updateTriggerConfig({
+                    costBasisCondition: {
+                      ...editingRule.triggerConfig.costBasisCondition,
+                      symbol,
+                      operator: editingRule.triggerConfig.costBasisCondition?.operator || '>',
+                      differenceType: editingRule.triggerConfig.costBasisCondition?.differenceType || 'PERCENTAGE',
+                      differenceValue: editingRule.triggerConfig.costBasisCondition?.differenceValue || 0,
+                    },
+                  })
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                차이 타입
+              </Label>
+              <MultiSelect
+                value={editingRule.triggerConfig.costBasisCondition?.differenceType || ''}
+                onValueChange={(value) =>
+                  updateTriggerConfig({
+                    costBasisCondition: {
+                      ...editingRule.triggerConfig.costBasisCondition!,
+                      differenceType: value as DifferenceType,
+                    },
+                  })
+                }
+                searchable={false}
+                multiple={false}
+              >
+                <MultiSelect.Trigger>
+                  <MultiSelect.Value placeholder="차이 타입을 선택해주세요" />
+                </MultiSelect.Trigger>
+                <MultiSelect.Content>
+                  {DIFFERENCE_TYPES.map((type) => (
+                    <MultiSelect.Item key={type} value={type}>
+                      {DIFFERENCE_TYPE_LABELS[type]}
+                    </MultiSelect.Item>
+                  ))}
+                </MultiSelect.Content>
+              </MultiSelect>
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                조건
+              </Label>
+              <MultiSelect
+                value={editingRule.triggerConfig.costBasisCondition?.operator || ''}
+                onValueChange={(value) =>
+                  updateTriggerConfig({
+                    costBasisCondition: {
+                      ...editingRule.triggerConfig.costBasisCondition!,
+                      operator: value as '>' | '<' | '>=' | '<=',
+                    },
+                  })
+                }
+                searchable={false}
+                multiple={false}
+              >
+                <MultiSelect.Trigger>
+                  <MultiSelect.Value placeholder="조건을 선택해주세요" />
+                </MultiSelect.Trigger>
+                <MultiSelect.Content>
+                  {PRICE_OPERATORS.map((op) => (
+                    <MultiSelect.Item key={op} value={op}>
+                      {PRICE_OPERATOR_LABELS[op]}
+                    </MultiSelect.Item>
+                  ))}
+                </MultiSelect.Content>
+              </MultiSelect>
+            </div>
+
+            <div className="space-y-1">
+              <Label size="small" weight="plus">
+                {editingRule.triggerConfig.costBasisCondition?.differenceType === 'PERCENTAGE' ? '차이 비율 (%)' : '차이 금액 ($)'}
+              </Label>
+              <Input
+                type="number"
+                size="small"
+                step={editingRule.triggerConfig.costBasisCondition?.differenceType === 'PERCENTAGE' ? '0.1' : '0.01'}
+                value={editingRule.triggerConfig.costBasisCondition?.differenceValue || ''}
+                onChange={(e) =>
+                  updateTriggerConfig({
+                    costBasisCondition: {
+                      ...editingRule.triggerConfig.costBasisCondition!,
+                      differenceValue: parseFloat(e.target.value) || 0,
+                    },
+                  })
+                }
+                placeholder={editingRule.triggerConfig.costBasisCondition?.differenceType === 'PERCENTAGE' ? '예: 10 (10%)' : '예: 5 ($5)'}
+              />
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -333,6 +460,15 @@ export const TradingRulesForm: React.FC<ITradingRulesFormProps> = ({ tradingRule
           triggerText = `${symbol}이 $${targetPrice.toLocaleString()}${PRICE_OPERATOR_LABELS[operator]}`;
         } else {
           triggerText = '가격 조건';
+        }
+        break;
+      case 'COST_BASIS':
+        if (rule.triggerConfig.costBasisCondition) {
+          const { symbol, operator, differenceType, differenceValue } = rule.triggerConfig.costBasisCondition;
+          const valueText = differenceType === 'PERCENTAGE' ? `${differenceValue}%` : `$${differenceValue}`;
+          triggerText = `${symbol} 평균 매수가 대비 ${valueText}${PRICE_OPERATOR_LABELS[operator]}`;
+        } else {
+          triggerText = '평균 매수가 조건';
         }
         break;
     }

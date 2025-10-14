@@ -76,19 +76,63 @@ function checkPriceTrigger(
 }
 
 /**
+ * 평균 매수가 기준 트리거 체크
+ */
+function checkCostBasisTrigger(
+  rule: ITradingRule,
+  currentPrices: Record<string, number>,
+  costBasis: Record<string, number>
+): boolean {
+  const { costBasisCondition } = rule.triggerConfig;
+  if (!costBasisCondition) return false;
+
+  const currentPrice = currentPrices[costBasisCondition.symbol];
+  const avgCostBasis = costBasis[costBasisCondition.symbol];
+
+  // 가격 정보나 평균 매수가가 없으면 false
+  if (!currentPrice || !avgCostBasis || avgCostBasis <= 0) return false;
+
+  // 차이값 계산
+  let difference = 0;
+  if (costBasisCondition.differenceType === 'PERCENTAGE') {
+    // 비율: (현재가 - 평균매수가) / 평균매수가 * 100
+    difference = ((currentPrice - avgCostBasis) / avgCostBasis) * 100;
+  } else {
+    // 절대값: 현재가 - 평균매수가
+    difference = currentPrice - avgCostBasis;
+  }
+
+  // 연산자에 따라 비교
+  switch (costBasisCondition.operator) {
+    case '>':
+      return difference > costBasisCondition.differenceValue;
+    case '<':
+      return difference < costBasisCondition.differenceValue;
+    case '>=':
+      return difference >= costBasisCondition.differenceValue;
+    case '<=':
+      return difference <= costBasisCondition.differenceValue;
+    default:
+      return false;
+  }
+}
+
+/**
  * 트리거 체커 맵 (확장 가능한 구조)
  * 새로운 트리거 타입 추가 시 여기에 함수만 추가하면 됨
  */
 type TriggerChecker = (
   rule: ITradingRule,
   currentDate: string,
-  currentPrices: Record<string, number>
+  currentPrices: Record<string, number>,
+  costBasis: Record<string, number>
 ) => boolean;
 
 const TRIGGER_CHECKERS: Record<string, TriggerChecker> = {
   DATE: (rule, currentDate) => checkDateTrigger(rule, currentDate),
   INTERVAL: (rule, currentDate) => checkIntervalTrigger(rule, currentDate),
   PRICE: (rule, currentDate, currentPrices) => checkPriceTrigger(rule, currentPrices),
+  COST_BASIS: (rule, currentDate, currentPrices, costBasis) => checkCostBasisTrigger(rule, currentPrices, costBasis),
 };
 
 /**
@@ -97,7 +141,8 @@ const TRIGGER_CHECKERS: Record<string, TriggerChecker> = {
 export function checkTrigger(
   rule: ITradingRule,
   currentDate: string,
-  currentPrices: Record<string, number>
+  currentPrices: Record<string, number>,
+  costBasis: Record<string, number> = {}
 ): boolean {
   const checker = TRIGGER_CHECKERS[rule.triggerType];
   if (!checker) {
@@ -105,7 +150,7 @@ export function checkTrigger(
     return false;
   }
 
-  return checker(rule, currentDate, currentPrices);
+  return checker(rule, currentDate, currentPrices, costBasis);
 }
 
 // ============================================
@@ -324,6 +369,22 @@ export function validateTradingRule(rule: ITradingRule): { valid: boolean; error
       }
       if (rule.triggerConfig.priceCondition.targetPrice <= 0) {
         errors.push('Target price must be greater than 0 for PRICE trigger');
+      }
+    }
+  }
+
+  if (rule.triggerType === 'COST_BASIS') {
+    if (!rule.triggerConfig.costBasisCondition) {
+      errors.push('Cost basis condition is required for COST_BASIS trigger');
+    } else {
+      if (!rule.triggerConfig.costBasisCondition.symbol) {
+        errors.push('Symbol is required for COST_BASIS trigger');
+      }
+      if (!rule.triggerConfig.costBasisCondition.operator) {
+        errors.push('Operator is required for COST_BASIS trigger');
+      }
+      if (!rule.triggerConfig.costBasisCondition.differenceType) {
+        errors.push('Difference type is required for COST_BASIS trigger');
       }
     }
   }

@@ -1,4 +1,4 @@
-import { AmountType, IntervalType, TradingAction, TriggerType } from '@/types/investor';
+import { AmountType, DifferenceType, IntervalType, TradingAction, TriggerType } from '@/types/investor';
 
 export const BACKTESTING_CONSTANTS = {
   DIVIDEND_COMPARISON_TOLERANCE: 0.001,
@@ -8,15 +8,17 @@ export const BACKTESTING_CONSTANTS = {
 } as const;
 
 // Trading Rule Constants
-export const TRIGGER_TYPES: TriggerType[] = ['DATE', 'INTERVAL', 'PRICE'];
+export const TRIGGER_TYPES: TriggerType[] = ['DATE', 'INTERVAL', 'PRICE', 'COST_BASIS'];
 export const TRADING_ACTIONS: TradingAction[] = ['BUY', 'SELL'];
 export const AMOUNT_TYPES: AmountType[] = ['FIXED', 'PERCENTAGE'];
 export const INTERVAL_TYPES: IntervalType[] = ['DAILY', 'WEEKLY', 'MONTHLY'];
+export const DIFFERENCE_TYPES: DifferenceType[] = ['PERCENTAGE', 'ABSOLUTE'];
 
 export const TRIGGER_TYPE_LABELS: Record<TriggerType, string> = {
   DATE: '특정 날짜',
   INTERVAL: '주기적',
   PRICE: '가격 조건',
+  COST_BASIS: '평균 매수가 기준',
 };
 
 export const TRADING_ACTION_LABELS: Record<TradingAction, string> = {
@@ -27,6 +29,11 @@ export const TRADING_ACTION_LABELS: Record<TradingAction, string> = {
 export const AMOUNT_TYPE_LABELS: Record<AmountType, string> = {
   FIXED: '고정 금액',
   PERCENTAGE: '비율',
+};
+
+export const DIFFERENCE_TYPE_LABELS: Record<DifferenceType, string> = {
+  PERCENTAGE: '비율 (%)',
+  ABSOLUTE: '절대값 ($)',
 };
 
 export const INTERVAL_TYPE_LABELS: Record<IntervalType, string> = {

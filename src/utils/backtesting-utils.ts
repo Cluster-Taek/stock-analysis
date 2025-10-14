@@ -222,14 +222,14 @@ export function runBacktestingSimulation(
   const portfolioTotal = params.portfolio.reduce((sum, item) => sum + item.amount, 0);
   const initialCashAmount = params.initialCash || 0;
   const initialCapital = portfolioTotal + initialCashAmount;
-  const portfolioState: Record<string, { shares: number }> = {};
+  const portfolioState: Record<string, { shares: number; costBasis: number }> = {};
   const lastKnownPrices: Record<string, number> = {};
   const pendingDividends: IPendingDividend[] = [];
   let cash = initialCashAmount;
 
   // Initialize portfolio state
   uniqueSymbols.forEach((symbol) => {
-    portfolioState[symbol] = { shares: 0 };
+    portfolioState[symbol] = { shares: 0, costBasis: 0 };
   });
 
   // 포트폴리오가 있는 경우만 초기 매수 진행
@@ -240,8 +240,10 @@ export function runBacktestingSimulation(
       if (!priceData?.close) {
         throw new Error(`${item.symbol}의 시작일(${actualStartDate}) 가격을 찾을 수 없습니다.`);
       }
+      const sharesToBuy = item.amount / priceData.close;
       portfolioState[item.symbol] = {
-        shares: (portfolioState[item.symbol]?.shares || 0) + item.amount / priceData.close,
+        shares: (portfolioState[item.symbol]?.shares || 0) + sharesToBuy,
+        costBasis: priceData.close, // 초기 매수가 기록
       };
     }
   }
@@ -329,16 +331,22 @@ export function runBacktestingSimulation(
     // Process trading rules
     const trades: ITradeExecution[] = [];
     if (tradingRules.length > 0) {
+      // Create costBasis map for trigger checking
+      const costBasisMap: Record<string, number> = {};
+      Object.entries(portfolioState).forEach(([symbol, state]) => {
+        costBasisMap[symbol] = state.costBasis;
+      });
+
       for (const rule of tradingRules) {
         // Check if trigger conditions are met
-        const triggerMet = checkTrigger(rule, date, lastKnownPrices);
+        const triggerMet = checkTrigger(rule, date, lastKnownPrices, costBasisMap);
 
         if (triggerMet) {
           console.log(`🎯 [${date}] 거래 규칙 트리거: ${rule.action} ${rule.symbol}`);
 
           // Ensure symbol exists in portfolio state
           if (!portfolioState[rule.symbol]) {
-            portfolioState[rule.symbol] = { shares: 0 };
+            portfolioState[rule.symbol] = { shares: 0, costBasis: 0 };
           }
 
           const currentPrice = dailyData.get(rule.symbol)?.close || lastKnownPrices[rule.symbol];
@@ -360,7 +368,30 @@ export function runBacktestingSimulation(
           if (tradeResult.success && tradeResult.execution) {
             // Update portfolio state
             cash = tradeResult.newCash;
-            portfolioState[rule.symbol].shares = tradeResult.newShares;
+            const oldShares = portfolioState[rule.symbol].shares;
+            const oldCostBasis = portfolioState[rule.symbol].costBasis;
+            const newShares = tradeResult.newShares;
+
+            // Update average cost basis
+            if (rule.action === 'BUY') {
+              // 매수: 평균 매수가 업데이트
+              if (oldShares > 0) {
+                // 기존 보유 주식이 있는 경우: 가중 평균
+                const totalCost = (oldShares * oldCostBasis) + (tradeResult.execution.shares * currentPrice);
+                portfolioState[rule.symbol].costBasis = totalCost / newShares;
+              } else {
+                // 신규 매수: 현재 가격이 평균 매수가
+                portfolioState[rule.symbol].costBasis = currentPrice;
+              }
+            } else {
+              // 매도: 평균 매수가 유지 (부분 매도) 또는 초기화 (전량 매도)
+              if (newShares <= 0) {
+                portfolioState[rule.symbol].costBasis = 0;
+              }
+              // 부분 매도의 경우 평균 매수가 유지
+            }
+
+            portfolioState[rule.symbol].shares = newShares;
             trades.push(tradeResult.execution);
 
             console.log(`✅ [${date}] ${rule.action} 실행 완료:`);
@@ -371,6 +402,7 @@ export function runBacktestingSimulation(
             console.log(`  - 수수료: $${tradeResult.execution.fee.toFixed(2)}`);
             console.log(`  - 새 현금 잔고: $${cash.toFixed(2)}`);
             console.log(`  - 새 보유 주식: ${portfolioState[rule.symbol].shares.toFixed(4)}주`);
+            console.log(`  - 평균 매수가: $${portfolioState[rule.symbol].costBasis.toFixed(2)}`);
           } else {
             console.warn(`❌ [${date}] ${rule.action} 실행 실패: ${tradeResult.errorMessage}`);
           }

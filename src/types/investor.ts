@@ -92,10 +92,11 @@ export interface DividendResponse {
 }
 
 // Trading Rule Types
-export type TriggerType = 'DATE' | 'INTERVAL' | 'PRICE';
+export type TriggerType = 'DATE' | 'INTERVAL' | 'PRICE' | 'COST_BASIS';
 export type TradingAction = 'BUY' | 'SELL';
 export type AmountType = 'FIXED' | 'PERCENTAGE';
 export type IntervalType = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type DifferenceType = 'PERCENTAGE' | 'ABSOLUTE';
 
 export interface ITriggerConfig {
   // DATE trigger
@@ -106,11 +107,19 @@ export interface ITriggerConfig {
   dayOfWeek?: number; // 0-6 (일요일=0)
   dayOfMonth?: number; // 1-31
 
-  // PRICE trigger (향후 확장)
+  // PRICE trigger
   priceCondition?: {
     symbol: string;
     operator: '>' | '<' | '>=' | '<=';
     targetPrice: number;
+  };
+
+  // COST_BASIS trigger (평균 매수가 기준)
+  costBasisCondition?: {
+    symbol: string;
+    operator: '>' | '<' | '>=' | '<=';
+    differenceType: DifferenceType;
+    differenceValue: number; // 비율(%) 또는 절대값($)
   };
 }
 
