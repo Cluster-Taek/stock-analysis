@@ -136,7 +136,8 @@ export const PortfolioForm: React.FC<IPortfolioFormProps> = ({
       setPortfolioItems([]);
       setTradingRules([]);
     }
-  }, [initialData, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData]);
 
 
   return (

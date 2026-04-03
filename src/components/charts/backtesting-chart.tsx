@@ -2,6 +2,7 @@
 
 import { BaseChart } from './base-chart';
 import { createLineDataset, getChartColors, portfolioColors } from '@/lib/chart-config';
+import { logger } from '@/utils/logger';
 import { IBacktestingResult } from '@/types/investor';
 import { useTheme } from 'next-themes';
 import React, { useMemo } from 'react';
@@ -109,11 +110,11 @@ export function BacktestingChart({
         }));
 
       if (dividendDates.length > 0) {
-        console.log(`📊 ${portfolio.portfolioName} 차트에 표시될 배당금 날짜들:`, dividendDates);
+        logger.log(`📊 ${portfolio.portfolioName} 차트에 표시될 배당금 날짜들:`, dividendDates);
       }
 
       if (tradeDates.length > 0) {
-        console.log(`📊 ${portfolio.portfolioName} 차트에 표시될 거래 날짜들:`, tradeDates);
+        logger.log(`📊 ${portfolio.portfolioName} 차트에 표시될 거래 날짜들:`, tradeDates);
       }
 
       // 포인트 스타일 오버라이드
@@ -133,7 +134,7 @@ export function BacktestingChart({
       labels: sortedDates,
       datasets,
     };
-  }, [data]);
+  }, [data, colors]);
 
   const chartOptions = useMemo(
     () => ({

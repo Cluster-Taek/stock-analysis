@@ -2,6 +2,7 @@ import { parseValidDate } from './utils';
 import { isYieldmaxSymbol } from './yieldmax-utils';
 import { checkTrigger, executeTrade, validateTradingRule } from './trading-utils';
 import { calculateMultipleHistoricalRSI } from './indicator-utils';
+import { logger } from './logger';
 import { BACKTESTING_CONSTANTS } from '@/constants/backtesting';
 import { DividendData, DividendResponse, HistoricalData, IBacktestingParams, IPendingDividend, ITradeExecution } from '@/types/investor';
 import { ApiResponse, HistoricalDataResponse } from '@/types/yahoo-finance';
@@ -88,13 +89,13 @@ export function createDividendMaps(fetchedDividends: DividendResponse[]): {
   }
 
   // API에서 가져온 배당금 데이터 총계 출력
-  console.log('📋 API에서 가져온 배당금 데이터 총계:');
+  logger.log('📋 API에서 가져온 배당금 데이터 총계:');
   let totalApiDividends = 0;
   for (const { symbol, data: dividends } of fetchedDividends) {
-    console.log(`  📊 ${symbol}: ${dividends.length}건`);
+    logger.log(`  📊 ${symbol}: ${dividends.length}건`);
     totalApiDividends += dividends.length;
   }
-  console.log(`  🔢 총 API 배당금 데이터: ${totalApiDividends}건`);
+  logger.log(`  🔢 총 API 배당금 데이터: ${totalApiDividends}건`);
 
   return { dividendMapBySymbolAndDate, payableDividendMapBySymbolAndDate };
 }
@@ -161,15 +162,16 @@ export function processDividendPayment(
   dailyData: Map<string, { close: number; dividend: number }>,
   lastKnownPrices: Record<string, number>,
   portfolioState: Record<string, { shares: number }>
-): number {
+): { cashGenerated: number; sharesToAdd: { symbol: string; shares: number } | null } {
   let cashGenerated = 0;
+  let sharesToAdd: { symbol: string; shares: number } | null = null;
 
   if (dividend.strategy === 'REINVESTMENT' && dividend.reinvestmentTarget) {
     const targetSymbol = dividend.reinvestmentTarget;
     const targetPrice = dailyData.get(targetSymbol)?.close || lastKnownPrices[targetSymbol];
     if (targetPrice > 0) {
       const newShares = dividend.amount / targetPrice;
-      portfolioState[targetSymbol].shares += newShares;
+      sharesToAdd = { symbol: targetSymbol, shares: newShares };
     } else {
       cashGenerated = dividend.amount;
     }
@@ -177,7 +179,7 @@ export function processDividendPayment(
     cashGenerated = dividend.amount;
   }
 
-  return cashGenerated;
+  return { cashGenerated, sharesToAdd };
 }
 
 export function calculateCAGR(
@@ -211,11 +213,11 @@ export function runBacktestingSimulation(
   // 거래 규칙 가져오기 및 검증
   const tradingRules = params.tradingRules || [];
   if (tradingRules.length > 0) {
-    console.log(`📋 거래 규칙 ${tradingRules.length}개 로드됨`);
+    logger.log(`📋 거래 규칙 ${tradingRules.length}개 로드됨`);
     tradingRules.forEach((rule, index) => {
       const validation = validateTradingRule(rule);
       if (!validation.valid) {
-        console.warn(`⚠️ 거래 규칙 ${index + 1} 검증 실패:`, validation.errors);
+        logger.warn(`⚠️ 거래 규칙 ${index + 1} 검증 실패:`, validation.errors);
       }
     });
   }
@@ -238,11 +240,11 @@ export function runBacktestingSimulation(
 
   // RSI를 사용하는 종목이 있으면 계산
   if (rsiSymbolsMap.size > 0) {
-    console.log(`📊 RSI 계산 대상 종목: ${Array.from(rsiSymbolsMap.keys()).join(', ')}`);
+    logger.log(`📊 RSI 계산 대상 종목: ${Array.from(rsiSymbolsMap.keys()).join(', ')}`);
 
     // 각 종목별로 RSI 계산
     rsiSymbolsMap.forEach((period, symbol) => {
-      console.log(`  🔢 ${symbol}: RSI(${period}) 계산 중...`);
+      logger.log(`  🔢 ${symbol}: RSI(${period}) 계산 중...`);
 
       // 해당 종목의 히스토리컬 데이터 추출
       const dates = Array.from(timelineData.keys()).sort();
@@ -266,7 +268,7 @@ export function runBacktestingSimulation(
 
       if (rsiValues) {
         rsiData.set(symbol, rsiValues);
-        console.log(`  ✅ ${symbol}: ${rsiValues.size}개 날짜의 RSI 계산 완료`);
+        logger.log(`  ✅ ${symbol}: ${rsiValues.size}개 날짜의 RSI 계산 완료`);
       }
     });
   }
@@ -336,12 +338,12 @@ export function runBacktestingSimulation(
           const lastDate = simulationDates[simulationDates.length - 1];
           const willBeProcessed = payableDate <= lastDate;
           
-          console.log(`📊 [${date}] ${symbol} 배당금 발생 (${dividendOccurrences[symbol]}회차):`);
-          console.log(`  - 보유주식: ${shares.toFixed(2)}주`);
-          console.log(`  - 주당배당금: $${priceData.dividend}`);
-          console.log(`  - 총 배당금: $${dividendReceived.toFixed(2)}`);
-          console.log(`  - 지급예정일: ${payableDate} ${willBeProcessed ? '✅' : '❌ (기간 외)'}`);
-          console.log(`  - 백테스팅 종료: ${lastDate}`);
+          logger.log(`📊 [${date}] ${symbol} 배당금 발생 (${dividendOccurrences[symbol]}회차):`);
+          logger.log(`  - 보유주식: ${shares.toFixed(2)}주`);
+          logger.log(`  - 주당배당금: $${priceData.dividend}`);
+          logger.log(`  - 총 배당금: $${dividendReceived.toFixed(2)}`);
+          logger.log(`  - 지급예정일: ${payableDate} ${willBeProcessed ? '✅' : '❌ (기간 외)'}`);
+          logger.log(`  - 백테스팅 종료: ${lastDate}`);
 
           // Find the original portfolio item or reinvestment target configuration
           const originalItem = params.portfolio.find((item) => item.symbol === symbol);
@@ -365,15 +367,21 @@ export function runBacktestingSimulation(
 
     const dividendsReceived: Record<string, number> = {};
     if (dividendsToExecute.length > 0) {
-      console.log(`💰 [${date}] 배당금 지급 처리:`);
+      logger.log(`💰 [${date}] 배당금 지급 처리:`);
     }
-    
+
     for (const dividend of dividendsToExecute) {
-      const cashGenerated = processDividendPayment(dividend, dailyData, lastKnownPrices, portfolioState);
+      const { cashGenerated, sharesToAdd } = processDividendPayment(dividend, dailyData, lastKnownPrices, portfolioState);
       cash += cashGenerated;
+
+      // 재투자가 있는 경우 주식 추가
+      if (sharesToAdd) {
+        portfolioState[sharesToAdd.symbol].shares += sharesToAdd.shares;
+      }
+
       dividendsReceived[dividend.symbol] = (dividendsReceived[dividend.symbol] || 0) + dividend.amount;
-      
-      console.log(`  💵 ${dividend.symbol}: $${dividend.amount.toFixed(2)} (${dividend.strategy === 'REINVESTMENT' ? '재투자' : '현금'}) → 현금 증가: $${cashGenerated.toFixed(2)}`);
+
+      logger.log(`  💵 ${dividend.symbol}: $${dividend.amount.toFixed(2)} (${dividend.strategy === 'REINVESTMENT' ? '재투자' : '현금'}) → 현금 증가: $${cashGenerated.toFixed(2)}`);
     }
 
     // Update pending dividends queue
@@ -394,7 +402,7 @@ export function runBacktestingSimulation(
         const triggerMet = checkTrigger(rule, date, lastKnownPrices, costBasisMap, rsiData);
 
         if (triggerMet) {
-          console.log(`🎯 [${date}] 거래 규칙 트리거: ${rule.action} ${rule.symbol}`);
+          logger.log(`🎯 [${date}] 거래 규칙 트리거: ${rule.action} ${rule.symbol}`);
 
           // Ensure symbol exists in portfolio state
           if (!portfolioState[rule.symbol]) {
@@ -403,7 +411,7 @@ export function runBacktestingSimulation(
 
           const currentPrice = dailyData.get(rule.symbol)?.close || lastKnownPrices[rule.symbol];
           if (!currentPrice) {
-            console.warn(`⚠️ [${date}] ${rule.symbol}의 가격 정보 없음, 거래 건너뜀`);
+            logger.warn(`⚠️ [${date}] ${rule.symbol}의 가격 정보 없음, 거래 건너뜀`);
             continue;
           }
 
@@ -446,17 +454,17 @@ export function runBacktestingSimulation(
             portfolioState[rule.symbol].shares = newShares;
             trades.push(tradeResult.execution);
 
-            console.log(`✅ [${date}] ${rule.action} 실행 완료:`);
-            console.log(`  - 심볼: ${rule.symbol}`);
-            console.log(`  - 주식 수: ${tradeResult.execution.shares.toFixed(4)}주`);
-            console.log(`  - 가격: $${currentPrice.toFixed(2)}`);
-            console.log(`  - 거래 금액: $${tradeResult.execution.totalAmount.toFixed(2)}`);
-            console.log(`  - 수수료: $${tradeResult.execution.fee.toFixed(2)}`);
-            console.log(`  - 새 현금 잔고: $${cash.toFixed(2)}`);
-            console.log(`  - 새 보유 주식: ${portfolioState[rule.symbol].shares.toFixed(4)}주`);
-            console.log(`  - 평균 매수가: $${portfolioState[rule.symbol].costBasis.toFixed(2)}`);
+            logger.log(`✅ [${date}] ${rule.action} 실행 완료:`);
+            logger.log(`  - 심볼: ${rule.symbol}`);
+            logger.log(`  - 주식 수: ${tradeResult.execution.shares.toFixed(4)}주`);
+            logger.log(`  - 가격: $${currentPrice.toFixed(2)}`);
+            logger.log(`  - 거래 금액: $${tradeResult.execution.totalAmount.toFixed(2)}`);
+            logger.log(`  - 수수료: $${tradeResult.execution.fee.toFixed(2)}`);
+            logger.log(`  - 새 현금 잔고: $${cash.toFixed(2)}`);
+            logger.log(`  - 새 보유 주식: ${portfolioState[rule.symbol].shares.toFixed(4)}주`);
+            logger.log(`  - 평균 매수가: $${portfolioState[rule.symbol].costBasis.toFixed(2)}`);
           } else {
-            console.warn(`❌ [${date}] ${rule.action} 실행 실패: ${tradeResult.errorMessage}`);
+            logger.warn(`❌ [${date}] ${rule.action} 실행 실패: ${tradeResult.errorMessage}`);
           }
         }
       }
@@ -486,11 +494,11 @@ export function runBacktestingSimulation(
 
     // 배당금이 기록된 날짜의 스냅샷 로그
     if (Object.keys(dividendsReceived).length > 0) {
-      console.log(`📈 [${date}] 스냅샷에 배당금 기록:`);
+      logger.log(`📈 [${date}] 스냅샷에 배당금 기록:`);
       Object.entries(dividendsReceived).forEach(([symbol, amount]) => {
-        console.log(`  📊 ${symbol}: $${amount.toFixed(2)}`);
+        logger.log(`  📊 ${symbol}: $${amount.toFixed(2)}`);
       });
-      console.log(`  💼 총 자본: $${capital.toFixed(2)} (현금: $${cash.toFixed(2)})`);
+      logger.log(`  💼 총 자본: $${capital.toFixed(2)} (현금: $${cash.toFixed(2)})`);
     }
 
     snapshots.push({
@@ -518,45 +526,45 @@ export function runBacktestingSimulation(
   }
 
   // 배당금 발생 횟수 총계 출력
-  console.log('🎯 백테스팅 배당금 발생 횟수 총계:');
+  logger.log('🎯 백테스팅 배당금 발생 횟수 총계:');
   const totalDividendOccurrences = Object.values(dividendOccurrences).reduce((sum, count) => sum + count, 0);
   Object.entries(dividendOccurrences).forEach(([symbol, count]) => {
-    console.log(`  📊 ${symbol}: ${count}회`);
+    logger.log(`  📊 ${symbol}: ${count}회`);
   });
-  console.log(`  🔢 총 배당금 발생: ${totalDividendOccurrences}회`);
-  
+  logger.log(`  🔢 총 배당금 발생: ${totalDividendOccurrences}회`);
+
   // 미지급 배당금 확인 (백테스팅 기간을 벗어난 케이스들)
   if (pendingDividends.length > 0) {
     const lastSimulationDate = simulationDates[simulationDates.length - 1];
-    console.log('⏳ 백테스팅 기간을 벗어난 미지급 배당금들:');
-    console.log(`   📅 백테스팅 종료일: ${lastSimulationDate}`);
-    console.log('');
-    
+    logger.log('⏳ 백테스팅 기간을 벗어난 미지급 배당금들:');
+    logger.log(`   📅 백테스팅 종료일: ${lastSimulationDate}`);
+    logger.log('');
+
     pendingDividends.forEach((div, index) => {
       const isOutsideRange = div.payableDate > lastSimulationDate;
-      console.log(`  💸 #${index + 1} ${div.symbol}:`);
-      console.log(`     💰 금액: $${div.amount.toFixed(2)}`);
-      console.log(`     📅 지급예정일: ${div.payableDate}`);
-      console.log(`     ⚠️ 기간 초과: ${isOutsideRange ? 'YES' : 'NO'} (${isOutsideRange ? div.payableDate + ' > ' + lastSimulationDate : '기간 내'})`);
-      console.log(`     🔄 전략: ${div.strategy}`);
+      logger.log(`  💸 #${index + 1} ${div.symbol}:`);
+      logger.log(`     💰 금액: $${div.amount.toFixed(2)}`);
+      logger.log(`     📅 지급예정일: ${div.payableDate}`);
+      logger.log(`     ⚠️ 기간 초과: ${isOutsideRange ? 'YES' : 'NO'} (${isOutsideRange ? div.payableDate + ' > ' + lastSimulationDate : '기간 내'})`);
+      logger.log(`     🔄 전략: ${div.strategy}`);
       if (div.reinvestmentTarget) {
-        console.log(`     🎯 재투자 대상: ${div.reinvestmentTarget}`);
+        logger.log(`     🎯 재투자 대상: ${div.reinvestmentTarget}`);
       }
-      console.log('');
+      logger.log('');
     });
-    console.log(`  🔢 미지급 배당금 총 ${pendingDividends.length}건`);
-    
+    logger.log(`  🔢 미지급 배당금 총 ${pendingDividends.length}건`);
+
     const outsideRangeCount = pendingDividends.filter(div => div.payableDate > lastSimulationDate).length;
     const withinRangeCount = pendingDividends.length - outsideRangeCount;
-    
+
     if (outsideRangeCount > 0) {
-      console.log(`  📊 기간 초과: ${outsideRangeCount}건`);
+      logger.log(`  📊 기간 초과: ${outsideRangeCount}건`);
     }
     if (withinRangeCount > 0) {
-      console.log(`  📊 기간 내 미처리: ${withinRangeCount}건 (처리 로직 확인 필요)`);
+      logger.log(`  📊 기간 내 미처리: ${withinRangeCount}건 (처리 로직 확인 필요)`);
     }
   }
-  
+
   // 실제 지급된 배당금 총계
   const totalPaidDividends = snapshots.reduce((total, snapshot) => {
     if (snapshot.dividendsReceived) {
@@ -564,12 +572,12 @@ export function runBacktestingSimulation(
     }
     return total;
   }, 0);
-  
-  console.log(`💰 실제 지급된 배당금: ${totalPaidDividends}회`);
-  console.log(`📊 차트 표시 예상: ${totalPaidDividends}회`);
-  
+
+  logger.log(`💰 실제 지급된 배당금: ${totalPaidDividends}회`);
+  logger.log(`📊 차트 표시 예상: ${totalPaidDividends}회`);
+
   if (totalDividendOccurrences !== totalPaidDividends) {
-    console.log(`⚠️ 차이: ${totalDividendOccurrences - totalPaidDividends}회 미지급`);
+    logger.log(`⚠️ 차이: ${totalDividendOccurrences - totalPaidDividends}회 미지급`);
   }
 
   return snapshots;

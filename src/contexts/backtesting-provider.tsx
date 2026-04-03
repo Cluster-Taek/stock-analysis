@@ -39,36 +39,33 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
   const addPortfolio = useCallback((data: IBacktestingParams) => {
     const id = crypto.randomUUID();
     const portfolioWithId = { ...data, id };
-    const updatedPortfolios = [...portfolios, portfolioWithId];
-    setPortfolios(updatedPortfolios);
-    
+    setPortfolios(prev => [...prev, portfolioWithId]);
+
     // 새로 추가된 포트폴리오를 자동으로 선택
     setSelectedPortfolios(prev => new Set([...Array.from(prev), id]));
-  }, [portfolios, setPortfolios]);
+  }, [setPortfolios]);
 
   // 포트폴리오 수정
   const updatePortfolio = useCallback((id: string, data: IBacktestingParams) => {
-    const updatedPortfolios = portfolios.map(p => 
+    setPortfolios(prev => prev.map(p =>
       p.id === id ? { ...data, id } : p
-    );
-    setPortfolios(updatedPortfolios);
-  }, [portfolios, setPortfolios]);
+    ));
+  }, [setPortfolios]);
 
   // 포트폴리오 삭제
   const deletePortfolio = useCallback((id: string) => {
-    const updatedPortfolios = portfolios.filter(p => p.id !== id);
-    setPortfolios(updatedPortfolios);
-    
+    setPortfolios(prev => prev.filter(p => p.id !== id));
+
     // 선택된 포트폴리오에서도 제거
     setSelectedPortfolios(prev => {
       const newSet = new Set(prev);
       newSet.delete(id);
       return newSet;
     });
-    
+
     // 백테스팅 결과에서도 제거
     setBacktestingResults(prev => prev.filter(r => r.portfolioId !== id));
-  }, [portfolios, setPortfolios]);
+  }, [setPortfolios]);
 
   // 포트폴리오 선택/해제 토글
   const togglePortfolioSelection = useCallback((id: string) => {
@@ -97,8 +94,9 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
     setBacktestingResults([]);
 
     try {
-      const selectedPortfolioData = portfolios.filter(p => portfolioIds.includes(p.id!));
+      const selectedPortfolioData = portfolios.filter(p => p.id && portfolioIds.includes(p.id));
       const results: IBacktestingResult[] = [];
+      const failedPortfolios: Array<{ name: string; error: string }> = [];
 
       // 각 포트폴리오에 대해 병렬로 백테스팅 실행
       await Promise.all(
@@ -216,19 +214,33 @@ const BacktestingProvider: React.FC<IBacktestingContextProps> = ({ children }) =
               config.sellFeeRate
             );
 
-            results.push({
-              result: snapshots,
-              portfolioId: params.id!,
-              portfolioName: params.name
-            });
+            if (params.id) {
+              results.push({
+                result: snapshots,
+                portfolioId: params.id,
+                portfolioName: params.name
+              });
+            }
           } catch (error) {
             console.error(`백테스팅 실패 (${params.name}):`, error);
-            // 개별 포트폴리오 실패시에도 다른 포트폴리오는 계속 진행
+            const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다';
+            failedPortfolios.push({ name: params.name, error: errorMessage });
           }
         })
       );
 
       setBacktestingResults(results);
+
+      // 실패한 포트폴리오가 있으면 사용자에게 알림
+      if (failedPortfolios.length > 0) {
+        const failedNames = failedPortfolios.map(f => `${f.name}: ${f.error}`).join('\n');
+        console.warn(`⚠️ 다음 포트폴리오의 백테스팅이 실패했습니다:\n${failedNames}`);
+        throw new BacktestingError(
+          `${failedPortfolios.length}개 포트폴리오의 백테스팅이 실패했습니다`,
+          BACKTESTING_ERROR_CODES.SIMULATION_FAILED,
+          { failedPortfolios }
+        );
+      }
     } catch (error) {
       console.error('백테스팅 실패:', error);
       throw error;
